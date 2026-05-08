@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html {
+    font-family: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'tnum' on;
+  }
+  body {
+    @apply bg-surface-alt text-ink antialiased;
+    margin: 0;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  html.dark body {
+    @apply bg-surface-dark text-[#F1F5EE];
+  }
+  h1, h2, h3, h4 {
+    @apply text-ink dark:text-[#F1F5EE] font-semibold tracking-tight;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(91, 103, 96, 0.3);
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface dark:bg-surface-dark-alt rounded-2xl shadow-card border border-line dark:border-line-dark p-6;
+  }
+  .card-tight {
+    @apply bg-surface dark:bg-surface-dark-alt rounded-xl shadow-card border border-line dark:border-line-dark p-4;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-surface-dark;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-secondary {
+    @apply btn bg-brand-100 text-brand-800 hover:bg-brand-200 dark:bg-brand-900/30 dark:text-brand-200 dark:hover:bg-brand-900/50;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink dark:text-[#F1F5EE] hover:bg-surface-alt dark:hover:bg-surface-dark-alt;
+  }
+  .btn-danger {
+    @apply btn bg-band-fail text-white hover:bg-[#8a1f24];
+  }
+  .input {
+    @apply w-full rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark-alt px-3 py-2 text-sm text-ink dark:text-[#F1F5EE] placeholder:text-ink-muted focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30;
+  }
+  .label {
+    @apply text-xs font-semibold uppercase tracking-wider text-ink-muted;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .divider {
+    @apply h-px bg-line dark:bg-line-dark;
+  }
+}
