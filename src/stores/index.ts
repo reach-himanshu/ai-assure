@@ -19,7 +19,11 @@ import { recomputeEvaluation, bandFor } from '@/lib/scoring';
 import { generateSeed } from '@/data/seed';
 import { nowIso } from '@/lib/dates';
 
-const STORAGE_KEY = 'ai-assure-state-v1';
+// Bumping the version invalidates older persisted state. Required when the
+// schema changes (e.g., evaluations gain a field) — without this, users with
+// pre-bump localStorage see stale data with missing fields rendered as blanks.
+// Bump alongside any breaking change to the persisted shape.
+const STORAGE_KEY = 'ai-assure-state-v2';
 
 interface AppState {
   bootstrapped: boolean;

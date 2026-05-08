@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { useApp, useCurrentUser } from '@/stores';
 import { Logo } from '@/components/Logo';
@@ -53,6 +53,7 @@ const ROLE_ACCENT: Record<Role, { ring: string; pill: string; icon: React.ReactN
 export function AppShell() {
   const me = useCurrentUser();
   const navigate = useNavigate();
+  const location = useLocation();
   const sidebarHidden = useApp((s) => s.sidebarHidden);
   const toggleSidebar = useApp((s) => s.toggleSidebar);
   const appealIconVariant = useApp((s) => s.appealIconVariant);
@@ -60,6 +61,12 @@ export function AppShell() {
     () => buildNavItems(appealIconVariant).filter((n) => me ? n.roles.includes(me.role) : false),
     [me, appealIconVariant],
   );
+
+  // Reset scroll on persona switch (route doesn't change so the browser
+  // doesn't reset on its own) and on every navigation.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  }, [me?.id, location.pathname]);
 
   if (!me) return null;
 
