@@ -134,6 +134,8 @@ export interface Evaluation {
   band: Band;
   aiConfidencePct: number;
   status: EvaluationStatus;
+  /** True when QA Admin keyed this evaluation from scratch (no AI grader). */
+  createdManually?: boolean;
 
   sections: RubricSection[];
   evidence: EvidenceQuote[];

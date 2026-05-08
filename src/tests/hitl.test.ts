@@ -63,6 +63,59 @@ describe('HITL approval flow', () => {
     expect(last.action).toBe('criterion.overridden');
   });
 
+  it('createManualEvaluation creates a fresh blank-rubric eval owned by QA Admin', () => {
+    const admin = QA_ADMINS[0]!;
+    useApp.getState().setCurrentUser(admin.id);
+    const agent = AGENTS[0]!;
+    const before = useApp.getState().evaluations.length;
+
+    const id = useApp.getState().createManualEvaluation({
+      channel: 'call',
+      agentId: agent.id,
+      hrcCaseNumber: 'HRC1234567',
+      caseDateTime: '2026-05-08T15:00:00.000Z',
+      summary: 'Caller asked about benefits enrollment after a qualifying life event.',
+    });
+
+    expect(id).toMatch(/^EVAL-MAN/);
+    expect(useApp.getState().evaluations.length).toBe(before + 1);
+    const created = useApp.getState().evaluations.find((e) => e.id === id)!;
+    expect(created.createdManually).toBe(true);
+    expect(created.status).toBe('manual_evaluated');
+    expect(created.channel).toBe('call');
+    expect(created.agentId).toBe(agent.id);
+    expect(created.hrcCaseNumber).toBe('HRC1234567');
+    expect(created.servicenow.caseId).toBe('HRC1234567');
+    // Every criterion must start blank (N/A)
+    for (const s of created.sections) {
+      for (const c of s.criteria) {
+        expect(c.value).toBe('na');
+      }
+    }
+    const last = useApp.getState().audit.at(-1)!;
+    expect(last.action).toBe('evaluation.created_manually');
+    expect(last.actorId).toBe(admin.id);
+  });
+
+  it('createManualEvaluation: chat carries IMS interaction id', () => {
+    const admin = QA_ADMINS[0]!;
+    useApp.getState().setCurrentUser(admin.id);
+    const agent = AGENTS[1]!;
+
+    const id = useApp.getState().createManualEvaluation({
+      channel: 'chat',
+      agentId: agent.id,
+      hrcCaseNumber: 'HRC9999999',
+      imsCaseNumber: 'IMS5555555',
+      caseDateTime: '2026-05-08T16:00:00.000Z',
+      summary: 'Composer asked where to find pay stubs after migration.',
+    });
+
+    const created = useApp.getState().evaluations.find((e) => e.id === id)!;
+    expect(created.imsCaseNumber).toBe('IMS5555555');
+    expect(created.hrcCaseNumber).toBe('HRC9999999');
+  });
+
   it('manualEvaluate (start blank) flips status, clears criteria to N/A, zeroes the score', () => {
     const admin = QA_ADMINS[0]!;
     useApp.getState().setCurrentUser(admin.id);

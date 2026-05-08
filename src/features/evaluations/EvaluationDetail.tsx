@@ -114,7 +114,13 @@ export function EvaluationDetail() {
         <div className="flex flex-col items-end gap-2">
           <ScoreBadge band={evaluation.band} pct={evaluation.overallPct} size="lg" />
           <div className="flex items-center gap-2">
-            <ConfidencePill pct={evaluation.aiConfidencePct} />
+            {evaluation.createdManually ? (
+              <span className="pill bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">
+                Manual entry
+              </span>
+            ) : (
+              <ConfidencePill pct={evaluation.aiConfidencePct} />
+            )}
             <span className="pill bg-surface-alt dark:bg-surface-dark border border-line dark:border-line-dark">
               {STATUS_LABEL[evaluation.status]}
             </span>

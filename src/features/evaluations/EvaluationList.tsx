@@ -6,6 +6,7 @@ import { ChannelIcon, channelColor } from '@/components/ChannelIcon';
 import { CHANNEL_LABEL, type Channel, type Band } from '@/lib/types';
 import { fromNow, formatDate } from '@/lib/dates';
 import { EmptyState } from '@/components/EmptyState';
+import { NewEvaluationModal } from './NewEvaluationModal';
 import clsx from 'clsx';
 
 export function EvaluationList() {
@@ -17,6 +18,7 @@ export function EvaluationList() {
   const [band, setBand] = useState<'all' | Band>('all');
   const [agentId, setAgentId] = useState<'all' | string>('all');
   const [search, setSearch] = useState('');
+  const [newOpen, setNewOpen] = useState(false);
 
   const visibleAgents = useMemo(() => {
     if (!me) return [];
@@ -54,7 +56,17 @@ export function EvaluationList() {
             {filtered.length.toLocaleString()} interactions match your filters · showing the most recent {Math.min(display.length, filtered.length)}
           </p>
         </div>
+        {me?.role === 'qa_admin' && (
+          <button className="btn-primary" onClick={() => setNewOpen(true)}>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            New evaluation
+          </button>
+        )}
       </div>
+
+      <NewEvaluationModal open={newOpen} onClose={() => setNewOpen(false)} />
 
       <div className="card-tight mb-5 grid grid-cols-1 md:grid-cols-5 gap-3">
         <div>
@@ -141,7 +153,15 @@ export function EvaluationList() {
                   </td>
                   <td className="px-4 py-3 max-w-md truncate">{e.summary}</td>
                   <td className="px-4 py-3"><ScoreBadge band={e.band} pct={e.overallPct} size="sm" /></td>
-                  <td className="px-4 py-3"><ConfidencePill pct={e.aiConfidencePct} /></td>
+                  <td className="px-4 py-3">
+                    {e.createdManually ? (
+                      <span className="pill bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">
+                        Manual entry
+                      </span>
+                    ) : (
+                      <ConfidencePill pct={e.aiConfidencePct} />
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-ink-muted whitespace-nowrap" title={formatDate(e.caseDateTime)}>{fromNow(e.caseDateTime)}</td>
                 </tr>
               ))}

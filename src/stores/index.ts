@@ -14,10 +14,11 @@ import type {
   RubricCriterion,
   User,
 } from '@/lib/types';
-import { DEFAULT_CONFIG } from '@/lib/rubric';
+import { DEFAULT_CONFIG, rubricForChannel } from '@/lib/rubric';
 import { recomputeEvaluation, bandFor } from '@/lib/scoring';
 import { generateSeed } from '@/data/seed';
-import { nowIso } from '@/lib/dates';
+import { isNestingAt, nowIso } from '@/lib/dates';
+import type { Channel } from '@/lib/types';
 
 // Bumping the version invalidates older persisted state. Required when the
 // schema changes (e.g., evaluations gain a field) — without this, users with
@@ -50,6 +51,16 @@ interface AppState {
   setLogoVariant: (v: LogoVariant) => void;
   setAppealIconVariant: (v: AppealIconVariant) => void;
   manualEvaluate: (evaluationId: string, opts: { startBlank: boolean; reason?: string }) => void;
+  createManualEvaluation: (input: {
+    channel: Channel;
+    agentId: string;
+    hrcCaseNumber: string;
+    imsCaseNumber?: string;
+    callUrl?: string;
+    caseDateTime: string;
+    summary: string;
+    snowCategory?: string;
+  }) => string;
 
   // evaluation actions
   fileAppeal: (
@@ -151,6 +162,76 @@ export const useApp = create<AppState>()(
 
       setLogoVariant: (v) => set({ logoVariant: v }),
       setAppealIconVariant: (v) => set({ appealIconVariant: v }),
+
+      createManualEvaluation: (input) => {
+        const state = get();
+        const me = state.users.find((u) => u.id === state.currentUserId);
+        if (!me) return '';
+        const agent = state.users.find((u) => u.id === input.agentId);
+        if (!agent) return '';
+
+        // Generate a unique evaluation id; suffix MAN to flag manual origin
+        const num = state.evaluations.length + 1;
+        const id = `EVAL-MAN${(70_000 + num).toString().padStart(6, '0')}`;
+
+        // Build a blank rubric for the channel — every criterion starts at N/A
+        // so the QA admin scores from scratch via the existing override controls.
+        const sections = rubricForChannel(input.channel).map((s) => ({
+          ...s,
+          criteria: s.criteria.map((c) => ({
+            ...c,
+            value: 'na' as const,
+            rationale: 'Not yet scored.',
+          })),
+          sectionScorePct: 0,
+          contribution: 'inconsistent' as const,
+          comments: '',
+        }));
+
+        const nestingAtTime = isNestingAt(agent.trainingCompleteDate, input.caseDateTime);
+
+        const evaluation: Evaluation = {
+          id,
+          channel: input.channel,
+          agentId: agent.id,
+          agentName: agent.name,
+          caseDateTime: input.caseDateTime,
+          reviewedBy: me.name,
+          hrcCaseNumber: input.hrcCaseNumber,
+          imsCaseNumber: input.imsCaseNumber,
+          callUrl: input.callUrl,
+          summary: input.summary,
+          overallPct: 0,
+          band: 'fail',
+          aiConfidencePct: 100,
+          status: 'manual_evaluated',
+          createdManually: true,
+          sections,
+          evidence: [],
+          comments: [],
+          flags: [],
+          createdAt: nowIso(),
+          nestingAtTime,
+          employmentTypeAtTime: agent.employmentType,
+          vendorAtTime: agent.vendor,
+          servicenow: {
+            caseId: input.hrcCaseNumber,
+            category: input.snowCategory ?? 'General',
+            status: 'In Progress',
+          },
+        };
+
+        const audit = appendAudit(state.audit, me, 'evaluation.created_manually', id, undefined, {
+          channel: input.channel,
+          agentId: agent.id,
+        });
+
+        set({
+          evaluations: [evaluation, ...state.evaluations],
+          audit,
+        });
+        return id;
+      },
 
       manualEvaluate: (evaluationId, opts) => {
         const state = get();
