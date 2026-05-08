@@ -1,6 +1,7 @@
 export type Channel = 'call' | 'email' | 'portal' | 'chat' | 'csat';
 export type Band = 'pass' | 'needs_review' | 'fail';
 export type Role = 'agent' | 'supervisor' | 'qa_admin' | 'leader';
+export type LogoVariant = 'spark' | 'waves' | 'a-spark';
 
 export type ContributionRating =
   | 'exceptional'

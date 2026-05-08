@@ -7,6 +7,7 @@ import type {
   ConfigState,
   Evaluation,
   EvaluationStatus,
+  LogoVariant,
   ReviewerComment,
   Role,
   RubricCriterion,
@@ -27,6 +28,7 @@ interface AppState {
   config: ConfigState;
   currentUserId: string | null;
   theme: 'light' | 'dark';
+  logoVariant: LogoVariant;
   channelVolumes: Record<string, number>;
   channelMonthlyVolumes: { month: string; calls: number; emails: number; chats: number; portal: number; csat: number }[];
 
@@ -35,6 +37,7 @@ interface AppState {
   resetDemo: () => void;
   setCurrentUser: (id: string) => void;
   toggleTheme: () => void;
+  setLogoVariant: (v: LogoVariant) => void;
 
   // evaluation actions
   fileAppeal: (
@@ -93,6 +96,7 @@ export const useApp = create<AppState>()(
       config: DEFAULT_CONFIG,
       currentUserId: null,
       theme: 'light',
+      logoVariant: 'spark',
       channelVolumes: {},
       channelMonthlyVolumes: [],
 
@@ -120,6 +124,8 @@ export const useApp = create<AppState>()(
           document.documentElement.classList.toggle('dark', next === 'dark');
         }
       },
+
+      setLogoVariant: (v) => set({ logoVariant: v }),
 
       fileAppeal: (evaluationId, payload) => {
         const state = get();
@@ -372,6 +378,7 @@ export const useApp = create<AppState>()(
         config: s.config,
         currentUserId: s.currentUserId,
         theme: s.theme,
+        logoVariant: s.logoVariant,
         channelVolumes: s.channelVolumes,
         channelMonthlyVolumes: s.channelMonthlyVolumes,
       }),

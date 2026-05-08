@@ -15,6 +15,7 @@ import { AgentProfile } from '@/features/agents/AgentProfile';
 export default function App() {
   const init = useApp((s) => s.init);
   const theme = useApp((s) => s.theme);
+  const logoVariant = useApp((s) => s.logoVariant);
   const currentUserId = useApp((s) => s.currentUserId);
 
   useEffect(() => {
@@ -24,6 +25,14 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  // Update favicon to match the active logo variant
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) return;
+    link.type = 'image/svg+xml';
+    link.href = `/favicon-${logoVariant}.svg`;
+  }, [logoVariant]);
 
   return (
     <Routes>
