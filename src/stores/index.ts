@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
+  AppealIconVariant,
   AppealRecord,
   AuditEntry,
   ConfigState,
@@ -28,7 +29,10 @@ interface AppState {
   config: ConfigState;
   currentUserId: string | null;
   theme: 'light' | 'dark';
+  textSize: 'small' | 'normal' | 'large';
+  sidebarHidden: boolean;
   logoVariant: LogoVariant;
+  appealIconVariant: AppealIconVariant;
   channelVolumes: Record<string, number>;
   channelMonthlyVolumes: { month: string; calls: number; emails: number; chats: number; portal: number; csat: number }[];
 
@@ -37,7 +41,11 @@ interface AppState {
   resetDemo: () => void;
   setCurrentUser: (id: string) => void;
   toggleTheme: () => void;
+  cycleTextSize: () => void;
+  toggleSidebar: () => void;
   setLogoVariant: (v: LogoVariant) => void;
+  setAppealIconVariant: (v: AppealIconVariant) => void;
+  manualEvaluate: (evaluationId: string, opts: { startBlank: boolean; reason?: string }) => void;
 
   // evaluation actions
   fileAppeal: (
@@ -96,7 +104,10 @@ export const useApp = create<AppState>()(
       config: DEFAULT_CONFIG,
       currentUserId: null,
       theme: 'light',
+      textSize: 'normal',
+      sidebarHidden: false,
       logoVariant: 'spark',
+      appealIconVariant: 'raised-hand',
       channelVolumes: {},
       channelMonthlyVolumes: [],
 
@@ -125,7 +136,55 @@ export const useApp = create<AppState>()(
         }
       },
 
+      cycleTextSize: () => {
+        const order = ['small', 'normal', 'large'] as const;
+        const cur = get().textSize;
+        const next = order[(order.indexOf(cur) + 1) % order.length]!;
+        set({ textSize: next });
+      },
+
+      toggleSidebar: () => set({ sidebarHidden: !get().sidebarHidden }),
+
       setLogoVariant: (v) => set({ logoVariant: v }),
+      setAppealIconVariant: (v) => set({ appealIconVariant: v }),
+
+      manualEvaluate: (evaluationId, opts) => {
+        const state = get();
+        const me = state.users.find((u) => u.id === state.currentUserId);
+        if (!me) return;
+        const target = state.evaluations.find((e) => e.id === evaluationId);
+        if (!target) return;
+
+        const before = { status: target.status, overallPct: target.overallPct };
+
+        // If "start blank", clear all criterion values to N/A and zero the score; the
+        // QA admin will re-score via the existing override controls. Otherwise keep
+        // current scoring as a starting point.
+        let updated: Evaluation = { ...target, status: 'manual_evaluated' };
+        if (opts.startBlank) {
+          updated = {
+            ...updated,
+            sections: updated.sections.map((s) => ({
+              ...s,
+              criteria: s.criteria.map((c) => ({ ...c, value: 'na' as const, rationale: 'Cleared for manual re-evaluation.' })),
+              sectionScorePct: 0,
+              contribution: 'inconsistent' as const,
+            })),
+            overallPct: 0,
+            band: 'fail' as const,
+          };
+        }
+
+        const audit = appendAudit(state.audit, me, 'evaluation.manual_evaluate', evaluationId, before, {
+          startBlank: opts.startBlank,
+          reason: opts.reason,
+        });
+
+        set({
+          evaluations: state.evaluations.map((e) => (e.id === evaluationId ? updated : e)),
+          audit,
+        });
+      },
 
       fileAppeal: (evaluationId, payload) => {
         const state = get();
@@ -378,7 +437,10 @@ export const useApp = create<AppState>()(
         config: s.config,
         currentUserId: s.currentUserId,
         theme: s.theme,
+        textSize: s.textSize,
+        sidebarHidden: s.sidebarHidden,
         logoVariant: s.logoVariant,
+        appealIconVariant: s.appealIconVariant,
         channelVolumes: s.channelVolumes,
         channelMonthlyVolumes: s.channelMonthlyVolumes,
       }),

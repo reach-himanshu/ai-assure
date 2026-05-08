@@ -18,6 +18,7 @@ import { rubricForChannel } from '@/lib/rubric';
 import { recomputeEvaluation } from '@/lib/scoring';
 import { DEFAULT_CONFIG } from '@/lib/rubric';
 import { makeRng, type Rng } from '@/lib/rng';
+import { isNestingAt } from '@/lib/dates';
 import { ALL_USERS, AGENTS, SUPERVISORS, QA_ADMINS } from './people';
 import {
   CALL_SCENARIOS,
@@ -216,8 +217,12 @@ function buildEvaluation(args: BuildArgs): Evaluation {
   const { rng, idx, channel, agent, caseDateTime } = args;
 
   const evalId = `EVAL-${(60000 + idx).toString()}`;
-  const snowCaseNumber = `SNOW-${(800000 + rng.int(0, 99999)).toString()}`;
-  const hrcCaseNumber = channel === 'call' ? `HRC-${(40000 + rng.int(0, 9999)).toString()}` : undefined;
+  const hrcDigits = (8_000_000 + rng.int(0, 1_999_999)).toString().padStart(7, '0');
+  const hrcCaseNumber = `HRC${hrcDigits}`;
+  const imsCaseNumber =
+    channel === 'chat'
+      ? `IMS${(2_000_000 + rng.int(0, 1_999_999)).toString().padStart(7, '0')}`
+      : undefined;
   const callUrl = channel === 'call' ? `https://genesys.hr4u.example/recordings/${rng.int(100000, 999999)}` : undefined;
 
   // Pick scenario / summary
@@ -298,7 +303,7 @@ function buildEvaluation(args: BuildArgs): Evaluation {
       rubric = attachEvidence(rubric, evidence);
     } else {
       summary = rng.pick(SHORT_SUMMARIES[channel]!);
-      emailBody = `Hi ${rng.pick(['Alex', 'Sam', 'Jordan', 'Casey', 'Riley', 'Morgan', 'Drew', 'Avery'])},\n\n${summary} I have logged this exchange under ${snowCaseNumber} for your records.\n\nLet me know if you have any other questions.\n\nBest,\n${agent.name}\nHR4U`;
+      emailBody = `Hi ${rng.pick(['Alex', 'Sam', 'Jordan', 'Casey', 'Riley', 'Morgan', 'Drew', 'Avery'])},\n\n${summary} I have logged this exchange under ${hrcCaseNumber} for your records.\n\nLet me know if you have any other questions.\n\nBest,\n${agent.name}\nHR4U`;
     }
   } else if (channel === 'chat') {
     if (args.richChatIdx >= 0) {
@@ -337,6 +342,11 @@ function buildEvaluation(args: BuildArgs): Evaluation {
 
   // Score the rubric: weighted distribution toward pass
   rubric = rubric.map((s) => scoreSection(s, rng, channel));
+
+  // Snapshot agent attributes at the time of the interaction (so historical
+  // evals don't shift if the agent later transitions out of nesting).
+  const nestingAtTime = isNestingAt(agent.trainingCompleteDate, caseDateTime);
+
   let evaluation: Evaluation = {
     id: evalId,
     channel,
@@ -344,10 +354,13 @@ function buildEvaluation(args: BuildArgs): Evaluation {
     agentName: agent.name,
     caseDateTime,
     reviewedBy: 'HRSSGC Quality Administration',
-    snowCaseNumber,
     hrcCaseNumber,
+    imsCaseNumber,
     callUrl,
     summary,
+    nestingAtTime,
+    employmentTypeAtTime: agent.employmentType,
+    vendorAtTime: agent.vendor,
     overallPct: 0,
     band: 'pass',
     aiConfidencePct: 0,
@@ -357,12 +370,12 @@ function buildEvaluation(args: BuildArgs): Evaluation {
     transcript,
     emailBody,
     csat,
-    genesys: channel === 'call' || channel === 'chat' ? {
+    genesys: channel === 'call' ? {
       recordingId: `rec-${rng.int(100000, 999999)}`,
       durationSec: rng.int(120, 720),
       queue,
     } : undefined,
-    servicenow: { caseId: snowCaseNumber, category, status: rng.pick(['Resolved', 'In Progress', 'Closed']) },
+    servicenow: { caseId: hrcCaseNumber, category, status: rng.pick(['Resolved', 'In Progress', 'Closed']) },
     comments: [],
     flags: [],
     createdAt: caseDateTime,

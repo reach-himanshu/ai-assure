@@ -1,10 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import clsx from 'clsx';
 import { useApp } from '@/stores';
 import { Logo } from '@/components/Logo';
-import { LogoMark, VARIANT_LABEL, VARIANT_DESCRIPTION } from '@/components/LogoMark';
 import { Avatar } from '@/components/Avatar';
-import type { LogoVariant } from '@/lib/types';
 import { ROLE_LABEL } from '@/lib/types';
 import { LEADERS, QA_ADMINS, SUPERVISORS, AGENTS } from '@/data/people';
 
@@ -78,49 +75,15 @@ export function PersonaPicker() {
             ))}
           </div>
 
-          <LogoStylePicker />
-
-          <p className="text-center text-xs text-ink-muted mt-8">
+          <p className="text-center text-xs text-ink-muted mt-10">
             Synthetic data only. No real customer or employee information is used. AI scoring shown is
             illustrative — this is a UX prototype, not a live model.
+          </p>
+          <p className="text-center text-xs text-ink-muted mt-2">
+            Branding and rubric weights live under <span className="font-semibold">QA Admin → Configuration</span>.
           </p>
         </div>
       </main>
     </div>
-  );
-}
-
-function LogoStylePicker() {
-  const variant = useApp((s) => s.logoVariant);
-  const setLogoVariant = useApp((s) => s.setLogoVariant);
-  const variants: LogoVariant[] = ['spark', 'waves', 'a-spark'];
-  return (
-    <section className="card mt-10">
-      <header className="flex items-baseline justify-between mb-4">
-        <h2 className="text-lg">Logo style</h2>
-        <span className="text-xs text-ink-muted">Pick one — applies everywhere instantly</span>
-      </header>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {variants.map((v) => (
-          <button
-            key={v}
-            onClick={() => setLogoVariant(v)}
-            className={clsx(
-              'rounded-xl border px-4 py-3 text-left transition-all flex items-center gap-3',
-              variant === v
-                ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 shadow-card'
-                : 'border-line dark:border-line-dark bg-surface-alt dark:bg-surface-dark hover:border-brand-300',
-            )}
-            aria-pressed={variant === v}
-          >
-            <LogoMark variant={v} size={40} />
-            <div className="min-w-0">
-              <div className="font-semibold">{VARIANT_LABEL[v]}</div>
-              <div className="text-xs text-ink-muted">{VARIANT_DESCRIPTION[v]}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }

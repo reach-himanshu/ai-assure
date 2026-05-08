@@ -63,6 +63,41 @@ describe('HITL approval flow', () => {
     expect(last.action).toBe('criterion.overridden');
   });
 
+  it('manualEvaluate (start blank) flips status, clears criteria to N/A, zeroes the score', () => {
+    const admin = QA_ADMINS[0]!;
+    useApp.getState().setCurrentUser(admin.id);
+    const target = useApp.getState().evaluations.find((e) => e.channel !== 'csat' && e.status !== 'manual_evaluated');
+    if (!target) return;
+
+    useApp.getState().manualEvaluate(target.id, { startBlank: true, reason: 'Recalibrating AI grader' });
+
+    const after = useApp.getState().evaluations.find((e) => e.id === target.id)!;
+    expect(after.status).toBe('manual_evaluated');
+    expect(after.overallPct).toBe(0);
+    for (const s of after.sections) {
+      for (const c of s.criteria) {
+        expect(c.value).toBe('na');
+      }
+    }
+    const last = useApp.getState().audit.at(-1)!;
+    expect(last.action).toBe('evaluation.manual_evaluate');
+  });
+
+  it('manualEvaluate (keep AI scores) only flips status, leaves scoring intact', () => {
+    const admin = QA_ADMINS[0]!;
+    useApp.getState().setCurrentUser(admin.id);
+    const target = useApp.getState().evaluations.find((e) => e.channel !== 'csat' && e.status !== 'manual_evaluated' && e.overallPct > 0)!;
+    const beforePct = target.overallPct;
+    const beforeFirstValue = target.sections[0]!.criteria[0]!.value;
+
+    useApp.getState().manualEvaluate(target.id, { startBlank: false });
+
+    const after = useApp.getState().evaluations.find((e) => e.id === target.id)!;
+    expect(after.status).toBe('manual_evaluated');
+    expect(after.overallPct).toBe(beforePct);
+    expect(after.sections[0]!.criteria[0]!.value).toBe(beforeFirstValue);
+  });
+
   it('addComment appends a reviewer comment authored by the current user', () => {
     const admin = QA_ADMINS[1]!;
     useApp.getState().setCurrentUser(admin.id);

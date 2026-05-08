@@ -8,7 +8,8 @@ import { ScoreBadge } from '@/components/ScoreBadge';
 import { ChannelIcon, channelColor } from '@/components/ChannelIcon';
 import { CHANNEL_LABEL } from '@/lib/types';
 import { fromNow } from '@/lib/dates';
-import { pct } from '@/lib/format';
+import { excludeNesting, pct } from '@/lib/format';
+import { isNestingNow } from '@/lib/dates';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, Cell } from 'recharts';
 import clsx from 'clsx';
 
@@ -16,16 +17,22 @@ export function AgentProfile() {
   const { id } = useParams<{ id: string }>();
   const agent = useApp((s) => s.users.find((u) => u.id === id));
   const supervisor = useApp((s) => s.users.find((u) => u.id === agent?.supervisorId));
-  const evaluations = useApp((s) => s.evaluations.filter((e) => e.agentId === id));
+  const allEvaluations = useApp((s) => s.evaluations);
+  const evaluations = useMemo(
+    () => allEvaluations.filter((e) => e.agentId === id),
+    [allEvaluations, id],
+  );
 
   const last30 = useMemo(
     () => evaluations.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(30, 'day'))),
     [evaluations],
   );
-  const avg = last30.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30.length, 1);
-  const passRate = (last30.filter((e) => e.band === 'pass').length / Math.max(last30.length, 1)) * 100;
-  const fails = last30.filter((e) => e.band === 'fail').length;
+  const last30Counted = excludeNesting(last30);
+  const avg = last30Counted.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30Counted.length, 1);
+  const passRate = (last30Counted.filter((e) => e.band === 'pass').length / Math.max(last30Counted.length, 1)) * 100;
+  const fails = last30Counted.filter((e) => e.band === 'fail').length;
   const openAppeals = evaluations.filter((e) => e.appeal && e.appeal.status === 'open').length;
+  const nestingNow = isNestingNow(agent?.trainingCompleteDate);
 
   const trend = useMemo(() => {
     const days: { date: string; score: number }[] = [];
@@ -63,7 +70,24 @@ export function AgentProfile() {
         <div className="flex items-center gap-4">
           <Avatar initials={agent.initials} color={agent.avatarColor} size="lg" />
           <div>
-            <h1 className="text-2xl">{agent.name}</h1>
+            <h1 className="text-2xl flex items-center gap-2">
+              {agent.name}
+              {nestingNow && (
+                <span className="pill bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 text-xs">
+                  Nesting
+                </span>
+              )}
+              {agent.employmentType === 'contractor' && agent.vendor && (
+                <span className="pill bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 text-xs">
+                  Contractor · {agent.vendor}
+                </span>
+              )}
+              {agent.employmentType === 'associate' && (
+                <span className="pill bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200 text-xs">
+                  Associate
+                </span>
+              )}
+            </h1>
             <p className="text-sm text-ink-muted mt-1">
               {agent.title} · {agent.team}{supervisor && <> · reports to {supervisor.name}</>}
             </p>
@@ -72,8 +96,13 @@ export function AgentProfile() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiTile label="30-day average" value={pct(avg || 0)} tone={avg >= 90 ? 'pass' : avg >= 75 ? 'review' : 'fail'} hint={`${last30.length} evals`} />
-        <KpiTile label="Pass rate" value={pct(passRate)} tone="pass" />
+        <KpiTile
+          label="30-day average"
+          value={last30Counted.length === 0 ? '—' : pct(avg)}
+          tone={last30Counted.length === 0 ? 'default' : avg >= 90 ? 'pass' : avg >= 75 ? 'review' : 'fail'}
+          hint={last30.length !== last30Counted.length ? `${last30Counted.length} counted · ${last30.length - last30Counted.length} in nesting` : `${last30Counted.length} evals`}
+        />
+        <KpiTile label="Pass rate" value={last30Counted.length === 0 ? '—' : pct(passRate)} tone={last30Counted.length === 0 ? 'default' : 'pass'} />
         <KpiTile label="Fails (30d)" value={fails.toString()} tone={fails > 5 ? 'fail' : 'default'} />
         <KpiTile label="Open appeals" value={openAppeals.toString()} />
       </div>

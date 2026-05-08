@@ -2,6 +2,7 @@ export type Channel = 'call' | 'email' | 'portal' | 'chat' | 'csat';
 export type Band = 'pass' | 'needs_review' | 'fail';
 export type Role = 'agent' | 'supervisor' | 'qa_admin' | 'leader';
 export type LogoVariant = 'spark' | 'waves' | 'a-spark';
+export type AppealIconVariant = 'raised-hand' | 'scroll' | 'gavel';
 
 export type ContributionRating =
   | 'exceptional'
@@ -13,6 +14,9 @@ export type ContributionRating =
 export type CriterionScale = 'fpnna' | 'ynna';
 export type CriterionValue = 'full' | 'partial' | 'none' | 'na' | 'yes' | 'no';
 
+export type EmploymentType = 'associate' | 'contractor';
+export type Vendor = 'IBM' | 'TCS' | 'EY' | 'Accenture' | 'Cognizant';
+
 export interface User {
   id: string;
   name: string;
@@ -23,6 +27,10 @@ export interface User {
   avatarColor: string;    // for circle avatars
   initials: string;
   title?: string;         // e.g. 'HR4U Agent', 'Senior Supervisor'
+  // Agent-only fields
+  employmentType?: EmploymentType;
+  vendor?: Vendor;                  // present only when employmentType === 'contractor'
+  trainingCompleteDate?: string;    // ISO; nesting = 90 days from this date (per-agent rolling)
 }
 
 export interface RubricCriterion {
@@ -66,6 +74,7 @@ export type EvaluationStatus =
   | 'pending_review'
   | 'reviewer_approved'
   | 'overridden'
+  | 'manual_evaluated'   // QA Admin scored manually (replaces or refreshes AI scoring)
   | 'pii_hold';
 
 export type EvaluationFlag = 'pii' | 'low_confidence' | 'random_sample' | 'exception';
@@ -109,10 +118,17 @@ export interface Evaluation {
   agentName: string;
   caseDateTime: string;
   reviewedBy: string;
-  snowCaseNumber: string;
-  hrcCaseNumber?: string;
+  // ServiceNow numbering: HRC for cases (always present, since only live-agent-touched
+  // chats are in scope), IMS for chat-interaction record (chat only).
+  hrcCaseNumber: string;
+  imsCaseNumber?: string;
   callUrl?: string;
   summary: string;
+  // Agent context snapshot at time of interaction (so historical evals don't move when
+  // the agent crosses out of nesting later).
+  nestingAtTime?: boolean;
+  employmentTypeAtTime?: EmploymentType;
+  vendorAtTime?: Vendor;
 
   overallPct: number;
   band: Band;
@@ -183,6 +199,7 @@ export const STATUS_LABEL: Record<EvaluationStatus, string> = {
   pending_review: 'Pending review',
   reviewer_approved: 'Reviewer approved',
   overridden: 'Overridden',
+  manual_evaluated: 'Manually evaluated',
   pii_hold: 'PII hold',
 };
 

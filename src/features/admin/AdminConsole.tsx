@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { fromNow } from '@/lib/dates';
 import { makeWeightedRubric } from '@/lib/rubric';
 import type { ConfigState } from '@/lib/types';
+import { BrandingTab } from './BrandingTab';
 
 export function AdminConsole() {
   const config = useApp((s) => s.config);
@@ -14,7 +15,7 @@ export function AdminConsole() {
   const audit = useApp((s) => s.audit);
   const toast = useToast();
 
-  const [tab, setTab] = useState<'thresholds' | 'rubric' | 'audit'>('thresholds');
+  const [tab, setTab] = useState<'thresholds' | 'rubric' | 'branding' | 'audit'>('thresholds');
 
   return (
     <div>
@@ -26,6 +27,7 @@ export function AdminConsole() {
         <div className="card-tight inline-flex items-center gap-1 p-1">
           <TabBtn active={tab === 'thresholds'} onClick={() => setTab('thresholds')}>Thresholds</TabBtn>
           <TabBtn active={tab === 'rubric'} onClick={() => setTab('rubric')}>Rubric editor</TabBtn>
+          <TabBtn active={tab === 'branding'} onClick={() => setTab('branding')}>Branding</TabBtn>
           <TabBtn active={tab === 'audit'} onClick={() => setTab('audit')}>Audit log</TabBtn>
         </div>
       </div>
@@ -94,6 +96,8 @@ export function AdminConsole() {
       )}
 
       {tab === 'rubric' && <RubricEditor config={config} renameCriterion={renameCriterion} updateWeight={updateWeight} />}
+
+      {tab === 'branding' && <BrandingTab />}
 
       {tab === 'audit' && (
         <div className="card">

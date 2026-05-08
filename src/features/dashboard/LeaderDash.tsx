@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '@/stores';
 import { KpiTile } from '@/components/KpiTile';
-import { compactNumber, pct } from '@/lib/format';
+import { compactNumber, excludeNesting, pct } from '@/lib/format';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, AreaChart, Area, BarChart, Bar, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
 import dayjs from 'dayjs';
 
@@ -12,7 +12,8 @@ export function LeaderDash() {
 
   const totalEvals = evaluations.length;
   const last30 = evaluations.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(30, 'day')));
-  const overallAvg = last30.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30.length, 1);
+  const last30Counted = excludeNesting(last30);
+  const overallAvg = last30Counted.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30Counted.length, 1);
   const csat = last30.filter((e) => e.csat);
   const csatAvg = csat.reduce((s, e) => s + (e.csat?.score ?? 0), 0) / Math.max(csat.length, 1);
   const promoters = csat.filter((e) => (e.csat?.score ?? 0) >= 4).length;

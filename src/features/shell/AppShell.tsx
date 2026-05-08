@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { useApp, useCurrentUser } from '@/stores';
 import { Logo } from '@/components/Logo';
 import { Avatar } from '@/components/Avatar';
-import { ROLE_LABEL } from '@/lib/types';
+import { ROLE_LABEL, type AppealIconVariant, type Role } from '@/lib/types';
 import { ToastViewport } from '@/components/Toast';
 import { fromNow } from '@/lib/dates';
 
@@ -12,33 +12,66 @@ interface NavItem {
   to: string;
   label: string;
   icon: React.ReactNode;
-  roles: ('agent' | 'supervisor' | 'qa_admin' | 'leader')[];
+  roles: Role[];
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: '/app/dashboard', label: 'Dashboard', icon: <NavIcon kind="dashboard" />, roles: ['agent', 'supervisor', 'qa_admin', 'leader'] },
-  { to: '/app/evaluations', label: 'Evaluations', icon: <NavIcon kind="list" />, roles: ['agent', 'supervisor', 'qa_admin', 'leader'] },
-  { to: '/app/queue', label: 'Review queue', icon: <NavIcon kind="queue" />, roles: ['supervisor', 'qa_admin'] },
-  { to: '/app/appeals', label: 'Appeals', icon: <NavIcon kind="appeal" />, roles: ['agent', 'supervisor', 'qa_admin', 'leader'] },
-  { to: '/app/insights', label: 'Insights', icon: <NavIcon kind="insights" />, roles: ['supervisor', 'qa_admin', 'leader'] },
-  { to: '/app/admin', label: 'Configuration', icon: <NavIcon kind="settings" />, roles: ['qa_admin'] },
-];
+function buildNavItems(appealIconVariant: AppealIconVariant): NavItem[] {
+  return [
+    { to: '/app/dashboard', label: 'Dashboard', icon: <NavIcon kind="dashboard" />, roles: ['agent', 'supervisor', 'qa_admin', 'leader'] },
+    { to: '/app/evaluations', label: 'Evaluations', icon: <NavIcon kind="list" />, roles: ['agent', 'supervisor', 'qa_admin', 'leader'] },
+    { to: '/app/queue', label: 'Review queue', icon: <NavIcon kind="queue" />, roles: ['supervisor', 'qa_admin'] },
+    { to: '/app/appeals', label: 'Appeals', icon: <AppealIcon variant={appealIconVariant} />, roles: ['agent', 'supervisor', 'qa_admin', 'leader'] },
+    { to: '/app/insights', label: 'Insights', icon: <NavIcon kind="insights" />, roles: ['supervisor', 'qa_admin', 'leader'] },
+    { to: '/app/admin', label: 'Configuration', icon: <NavIcon kind="settings" />, roles: ['qa_admin'] },
+  ];
+}
+
+// Role-specific accent — used for avatar ring and persona pill in header
+const ROLE_ACCENT: Record<Role, { ring: string; pill: string; icon: React.ReactNode }> = {
+  agent: {
+    ring: 'ring-brand-500',
+    pill: 'bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200 border-brand-300/40',
+    icon: <RoleIcon kind="agent" />,
+  },
+  supervisor: {
+    ring: 'ring-sky-500',
+    pill: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200 border-sky-300/40',
+    icon: <RoleIcon kind="supervisor" />,
+  },
+  qa_admin: {
+    ring: 'ring-violet-500',
+    pill: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 border-violet-300/40',
+    icon: <RoleIcon kind="qa_admin" />,
+  },
+  leader: {
+    ring: 'ring-amber-500',
+    pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border-amber-300/40',
+    icon: <RoleIcon kind="leader" />,
+  },
+};
 
 export function AppShell() {
   const me = useCurrentUser();
   const navigate = useNavigate();
+  const sidebarHidden = useApp((s) => s.sidebarHidden);
+  const toggleSidebar = useApp((s) => s.toggleSidebar);
+  const appealIconVariant = useApp((s) => s.appealIconVariant);
   const navItems = useMemo(
-    () => NAV_ITEMS.filter((n) => me ? n.roles.includes(me.role) : false),
-    [me],
+    () => buildNavItems(appealIconVariant).filter((n) => me ? n.roles.includes(me.role) : false),
+    [me, appealIconVariant],
   );
 
   if (!me) return null;
 
   return (
     <div className="min-h-screen flex">
-      <Sidebar navItems={navItems} />
+      {!sidebarHidden && <Sidebar navItems={navItems} onCollapse={toggleSidebar} />}
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar onLogout={() => navigate('/login')} />
+        <TopBar
+          onLogout={() => navigate('/login')}
+          sidebarHidden={sidebarHidden}
+          onShowSidebar={toggleSidebar}
+        />
         <main className="flex-1 px-8 py-6 max-w-[1600px] w-full mx-auto">
           <Outlet />
         </main>
@@ -48,11 +81,21 @@ export function AppShell() {
   );
 }
 
-function Sidebar({ navItems }: { navItems: NavItem[] }) {
+function Sidebar({ navItems, onCollapse }: { navItems: NavItem[]; onCollapse: () => void }) {
   return (
     <aside className="w-64 shrink-0 border-r border-line dark:border-line-dark bg-surface dark:bg-surface-dark flex flex-col">
-      <div className="px-5 py-5">
+      <div className="px-5 py-5 flex items-center justify-between gap-2">
         <Logo />
+        <button
+          onClick={onCollapse}
+          className="text-ink-muted hover:text-ink dark:hover:text-[#F1F5EE] p-1.5 rounded-lg hover:bg-surface-alt dark:hover:bg-surface-dark-alt"
+          aria-label="Hide sidebar (Ctrl+B)"
+          title="Hide sidebar (Ctrl+B)"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+        </button>
       </div>
       <nav className="px-3 flex-1 space-y-0.5">
         {navItems.map((n) => (
@@ -80,18 +123,30 @@ function Sidebar({ navItems }: { navItems: NavItem[] }) {
   );
 }
 
-function TopBar({ onLogout }: { onLogout: () => void }) {
+function TopBar({
+  onLogout,
+  sidebarHidden,
+  onShowSidebar,
+}: {
+  onLogout: () => void;
+  sidebarHidden: boolean;
+  onShowSidebar: () => void;
+}) {
   const me = useCurrentUser();
   const users = useApp((s) => s.users);
   const setCurrentUser = useApp((s) => s.setCurrentUser);
   const theme = useApp((s) => s.theme);
   const toggleTheme = useApp((s) => s.toggleTheme);
+  const textSize = useApp((s) => s.textSize);
+  const cycleTextSize = useApp((s) => s.cycleTextSize);
   const audit = useApp((s) => s.audit);
   const evaluations = useApp((s) => s.evaluations);
   const resetDemo = useApp((s) => s.resetDemo);
 
   const [bellOpen, setBellOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const accent = me ? ROLE_ACCENT[me.role] : null;
 
   // Notifications derived for current persona
   const notifications = useMemo(() => {
@@ -128,13 +183,44 @@ function TopBar({ onLogout }: { onLogout: () => void }) {
     }));
   }, [me, evaluations, users, audit]);
 
-  if (!me) return null;
+  if (!me || !accent) return null;
 
   return (
     <header className="border-b border-line dark:border-line-dark bg-surface dark:bg-surface-dark sticky top-0 z-30">
-      <div className="px-8 py-3 flex items-center justify-between gap-4">
-        <div className="text-sm text-ink-muted">
-          Welcome back, <span className="font-semibold text-ink dark:text-[#F1F5EE]">{me.name.split(' ')[0]}</span> · viewing as {ROLE_LABEL[me.role]}
+      <div className="px-6 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          {sidebarHidden && (
+            <button
+              onClick={onShowSidebar}
+              className="btn-ghost p-2"
+              aria-label="Show sidebar (Ctrl+B)"
+              title="Show sidebar (Ctrl+B)"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M3 12h18M3 18h18" />
+              </svg>
+            </button>
+          )}
+          {/* Persona indicator */}
+          <div className="flex items-center gap-2.5">
+            <span className={clsx('relative inline-flex rounded-full ring-2 ring-offset-2 dark:ring-offset-surface-dark', accent.ring)}>
+              <Avatar initials={me.initials} color={me.avatarColor} size="sm" />
+            </span>
+            <div className="hidden md:flex flex-col leading-tight">
+              <span className="text-sm font-semibold text-ink dark:text-[#F1F5EE]">{me.name}</span>
+              <span className="text-xs text-ink-muted">{me.email}</span>
+            </div>
+            <span
+              className={clsx(
+                'pill border ml-1',
+                accent.pill,
+              )}
+              title={`Viewing as ${ROLE_LABEL[me.role]}`}
+            >
+              <span className="w-3.5 h-3.5">{accent.icon}</span>
+              {ROLE_LABEL[me.role]}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Persona switcher */}
@@ -165,6 +251,24 @@ function TopBar({ onLogout }: { onLogout: () => void }) {
               ))}
             </optgroup>
           </select>
+
+          {/* Text size cycler */}
+          <button
+            className="btn-ghost px-2 py-1.5"
+            aria-label={`Text size: ${textSize}. Click to cycle.`}
+            title={`Text size: ${textSize} (click to cycle)`}
+            onClick={cycleTextSize}
+          >
+            <span className={clsx(
+              'inline-flex items-baseline gap-0.5 font-semibold tracking-tight tabular-nums',
+              textSize === 'small' && 'text-xs',
+              textSize === 'normal' && 'text-sm',
+              textSize === 'large' && 'text-base',
+            )}>
+              <span>A</span>
+              <span className="text-[0.7em]">a</span>
+            </span>
+          </button>
 
           {/* Theme toggle */}
           <button
@@ -228,7 +332,6 @@ function TopBar({ onLogout }: { onLogout: () => void }) {
               onClick={() => setMenuOpen((o) => !o)}
             >
               <Avatar initials={me.initials} color={me.avatarColor} size="sm" />
-              <span className="text-sm font-medium hidden md:inline">{me.name.split(' ')[0]}</span>
               <svg viewBox="0 0 24 24" className="w-4 h-4 text-ink-muted" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M6 9l6 6 6-6" />
               </svg>
@@ -265,14 +368,54 @@ function TopBar({ onLogout }: { onLogout: () => void }) {
   );
 }
 
-function NavIcon({ kind }: { kind: 'dashboard' | 'list' | 'queue' | 'appeal' | 'insights' | 'settings' }) {
+function NavIcon({ kind }: { kind: 'dashboard' | 'list' | 'queue' | 'insights' | 'settings' }) {
   const props = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, width: 18, height: 18 };
   switch (kind) {
     case 'dashboard': return <svg {...props}><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>;
     case 'list': return <svg {...props}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>;
     case 'queue': return <svg {...props}><path d="M3 6h18M5 12h14M8 18h8" /></svg>;
-    case 'appeal': return <svg {...props}><path d="M14 9V5a3 3 0 0 0-6 0v4" /><rect x="3" y="9" width="18" height="12" rx="2" /></svg>;
     case 'insights': return <svg {...props}><path d="M3 3v18h18M7 14l3-3 4 4 5-7" /></svg>;
     case 'settings': return <svg {...props}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>;
+  }
+}
+
+export function AppealIcon({ variant, size = 18 }: { variant: AppealIconVariant; size?: number }) {
+  const props = { viewBox: '0 0 24 24', fill: 'none' as const, stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, width: size, height: size };
+  switch (variant) {
+    case 'raised-hand':
+      return (
+        <svg {...props}>
+          <path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11" />
+          <path d="M12 11V4.5a1.5 1.5 0 0 1 3 0V11" />
+          <path d="M15 11V5.5a1.5 1.5 0 0 1 3 0V13" />
+          <path d="M18 9.5a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-7 7h-1.4a5 5 0 0 1-3.5-1.5L4 16a1.5 1.5 0 0 1 2.1-2.1L9 16.5V5.5a1.5 1.5 0 0 0-3 0V13" />
+        </svg>
+      );
+    case 'scroll':
+      return (
+        <svg {...props}>
+          <path d="M5 6a3 3 0 0 1 6 0v11a3 3 0 0 0 3 3H6a3 3 0 0 1-3-3V8a2 2 0 0 1 2-2z" />
+          <path d="M11 6a3 3 0 0 1 6 0v10a3 3 0 0 0 3 3" />
+          <path d="M8 11h6M8 14h6" />
+        </svg>
+      );
+    case 'gavel':
+      return (
+        <svg {...props}>
+          <path d="M14 9l-3-3M16.5 6.5l1-1a2 2 0 0 1 2.8 2.8l-1 1M6 20h12" />
+          <path d="M11 6L6 11l5 5 5-5-5-5z" />
+          <path d="M8 14l-4 4" />
+        </svg>
+      );
+  }
+}
+
+function RoleIcon({ kind }: { kind: Role }) {
+  const props = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, width: 12, height: 12 };
+  switch (kind) {
+    case 'agent': return <svg {...props}><path d="M16 21v-2a4 4 0 0 0-8 0v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /></svg>;
+    case 'supervisor': return <svg {...props}><path d="M17 21v-2a4 4 0 0 0-3-3.9M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3a4 4 0 0 1 0 7.7M1 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2" /></svg>;
+    case 'qa_admin': return <svg {...props}><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z" /><path d="M9 12l2 2 4-4" /></svg>;
+    case 'leader': return <svg {...props}><path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6z" /></svg>;
   }
 }

@@ -6,7 +6,7 @@ import { KpiTile } from '@/components/KpiTile';
 import { ScoreBadge } from '@/components/ScoreBadge';
 import { Avatar } from '@/components/Avatar';
 import { fromNow } from '@/lib/dates';
-import { pct } from '@/lib/format';
+import { excludeNesting, pct } from '@/lib/format';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, Cell } from 'recharts';
 
 export function SupervisorDash() {
@@ -23,19 +23,23 @@ export function SupervisorDash() {
   );
 
   const last30 = teamEvals.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(30, 'day')));
-  const teamAvg = last30.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30.length, 1);
-  const passRate = (last30.filter((e) => e.band === 'pass').length / Math.max(last30.length, 1)) * 100;
+  const last30Counted = excludeNesting(last30);
+  const teamAvg = last30Counted.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30Counted.length, 1);
+  const passRate = (last30Counted.filter((e) => e.band === 'pass').length / Math.max(last30Counted.length, 1)) * 100;
+  const nestingCount = last30.length - last30Counted.length;
   const openAppeals = teamEvals.filter((e) => e.appeal && e.appeal.status === 'open').length;
   const lowConfQueue = teamEvals.filter((e) => e.flags.includes('low_confidence') && (e.status === 'pending_review' || e.status === 'auto_approved')).length;
 
-  // Per-agent scorecard
+  // Per-agent scorecard — nesting evals visible in count but excluded from avg/fails
   const agentRows = useMemo(() => {
     return team.map((u) => {
-      const eu = last30.filter((e) => e.agentId === u.id);
-      const avg = eu.length ? eu.reduce((s, e) => s + e.overallPct, 0) / eu.length : 0;
-      const fails = eu.filter((e) => e.band === 'fail').length;
+      const all = last30.filter((e) => e.agentId === u.id);
+      const counted = excludeNesting(all);
+      const avg = counted.length ? counted.reduce((s, e) => s + e.overallPct, 0) / counted.length : 0;
+      const fails = counted.filter((e) => e.band === 'fail').length;
       const open = teamEvals.filter((e) => e.agentId === u.id && e.appeal && e.appeal.status === 'open').length;
-      return { agent: u, avg, count: eu.length, fails, openAppeals: open };
+      const nesting = all.length - counted.length;
+      return { agent: u, avg, count: all.length, fails, openAppeals: open, nesting };
     }).sort((a, b) => b.avg - a.avg);
   }, [team, last30, teamEvals]);
 
@@ -64,7 +68,12 @@ export function SupervisorDash() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiTile label="Team average" value={pct(teamAvg)} tone={teamAvg >= 90 ? 'pass' : teamAvg >= 75 ? 'review' : 'fail'} hint={`${last30.length} evals`} />
+        <KpiTile
+          label="Team average"
+          value={pct(teamAvg)}
+          tone={teamAvg >= 90 ? 'pass' : teamAvg >= 75 ? 'review' : 'fail'}
+          hint={nestingCount > 0 ? `${last30Counted.length} counted · ${nestingCount} in nesting` : `${last30Counted.length} evals`}
+        />
         <KpiTile label="Pass rate" value={pct(passRate)} tone="pass" />
         <KpiTile label="Open appeals" value={openAppeals.toString()} tone={openAppeals > 0 ? 'review' : 'default'} hint="needs your decision" />
         <KpiTile label="Low-confidence queue" value={lowConfQueue.toString()} hint="awaiting review" />
@@ -134,6 +143,16 @@ export function SupervisorDash() {
                     <Link to={`/app/agents/${r.agent.id}`} className="flex items-center gap-3 hover:underline">
                       <Avatar initials={r.agent.initials} color={r.agent.avatarColor} size="sm" />
                       <span className="font-medium">{r.agent.name}</span>
+                      {r.nesting > 0 && (
+                        <span className="pill bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                          Nesting
+                        </span>
+                      )}
+                      {r.agent.employmentType === 'contractor' && r.agent.vendor && (
+                        <span className="pill bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">
+                          {r.agent.vendor}
+                        </span>
+                      )}
                     </Link>
                   </td>
                   <td className="px-3 py-3 tabular-nums">{r.count}</td>

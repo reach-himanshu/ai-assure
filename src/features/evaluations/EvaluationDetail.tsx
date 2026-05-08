@@ -11,6 +11,8 @@ import { EvidencePanel } from './EvidencePanel';
 import { IntegrationSidebar } from './IntegrationSidebar';
 import { AppealModal } from '@/features/appeals/AppealModal';
 import { AppealDecisionModal } from '@/features/appeals/AppealDecisionModal';
+import { ManualEvaluateModal } from './ManualEvaluateModal';
+import { CallRecordingPlayer } from './CallRecordingPlayer';
 import { isWithinAppealWindow, formatDateTime, fromNow } from '@/lib/dates';
 import clsx from 'clsx';
 import { useToast } from '@/components/Toast';
@@ -29,6 +31,8 @@ export function EvaluationDetail() {
   const [highlightedEvidenceId, setHighlightedEvidenceId] = useState<string | null>(null);
   const [appealOpen, setAppealOpen] = useState(false);
   const [decisionOpen, setDecisionOpen] = useState(false);
+  const [manualEvalOpen, setManualEvalOpen] = useState(false);
+  const [audioJumpMs, setAudioJumpMs] = useState<number | null>(null);
   const [newComment, setNewComment] = useState('');
 
   const supervisorOfAgent = useApp((s) => {
@@ -60,6 +64,8 @@ export function EvaluationDetail() {
     return false;
   }, [evaluation, me, supervisorOfAgent]);
 
+  const canManualEvaluate = me?.role === 'qa_admin' && evaluation && evaluation.channel !== 'csat';
+
   if (!evaluation) {
     return (
       <div className="card text-center py-12">
@@ -71,15 +77,13 @@ export function EvaluationDetail() {
 
   const onClickEvidence = (eid: string) => {
     setHighlightedEvidenceId(eid);
-    transcriptRef.current?.highlightTurn(
-      // try to find a transcript turn whose text matches the evidence text
-      (() => {
-        const ev = evaluation.evidence.find((e) => e.id === eid);
-        if (!ev || !evaluation.transcript) return '';
-        const turn = evaluation.transcript.find((t) => t.text === ev.text && t.speaker === ev.speaker);
-        return turn?.id ?? '';
-      })(),
-    );
+    const ev = evaluation.evidence.find((e) => e.id === eid);
+    if (!ev) return;
+    if (typeof ev.startMs === 'number') setAudioJumpMs(ev.startMs);
+    if (evaluation.transcript) {
+      const turn = evaluation.transcript.find((t) => t.text === ev.text && t.speaker === ev.speaker);
+      transcriptRef.current?.highlightTurn(turn?.id ?? '');
+    }
   };
 
   const onSendComment = () => {
@@ -119,7 +123,7 @@ export function EvaluationDetail() {
       </div>
 
       {/* Action bar */}
-      {(canFileAppeal || canDecideAppeal || canApprove || evaluation.appeal) && (
+      {(canFileAppeal || canDecideAppeal || canApprove || canManualEvaluate || evaluation.appeal) && (
         <div className="card-tight mb-5 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <Avatar initials={evaluation.agentName.split(' ').map((p) => p[0]).join('').slice(0, 2)} color="#2F6B1E" size="sm" />
@@ -131,6 +135,14 @@ export function EvaluationDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {canManualEvaluate && evaluation.status !== 'manual_evaluated' && (
+              <button className="btn-secondary" onClick={() => setManualEvalOpen(true)}>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                </svg>
+                Evaluate manually
+              </button>
+            )}
             {canApprove && (
               <button className="btn-secondary" onClick={() => { approveEvaluation(evaluation.id); toast('Evaluation approved.', 'success'); }}>
                 Approve
@@ -180,15 +192,21 @@ export function EvaluationDetail() {
           />
         </div>
 
-        {/* Middle: Transcript / Body */}
-        <div className="xl:col-span-4">
-          <h2 className="text-lg mb-3">{evaluation.channel === 'email' || evaluation.channel === 'portal' ? 'Message body' : 'Transcript'}</h2>
-          <TranscriptViewer
-            ref={transcriptRef}
-            evaluation={evaluation}
-            highlightedEvidenceId={highlightedEvidenceId}
-          />
-          <div className="mt-4">
+        {/* Middle: Recording (call only) + Transcript / Body */}
+        <div className="xl:col-span-4 space-y-4">
+          {evaluation.channel === 'call' && evaluation.genesys && (
+            <CallRecordingPlayer evaluation={evaluation} jumpToMs={audioJumpMs} />
+          )}
+          <div>
+            <h2 className="text-lg mb-3">{evaluation.channel === 'email' || evaluation.channel === 'portal' ? 'Message body' : 'Transcript'}</h2>
+            <TranscriptViewer
+              ref={transcriptRef}
+              evaluation={evaluation}
+              highlightedEvidenceId={highlightedEvidenceId}
+              onTurnClick={(ms) => setAudioJumpMs(ms)}
+            />
+          </div>
+          <div>
             <EvidencePanel
               evaluation={evaluation}
               highlightedCriterionId={highlightedCriterionId}
@@ -207,6 +225,7 @@ export function EvaluationDetail() {
       {evaluation.appeal && (
         <AppealDecisionModal open={decisionOpen} onClose={() => setDecisionOpen(false)} evaluation={evaluation} />
       )}
+      <ManualEvaluateModal open={manualEvalOpen} onClose={() => setManualEvalOpen(false)} evaluation={evaluation} />
     </div>
   );
 }

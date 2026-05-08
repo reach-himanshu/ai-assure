@@ -48,3 +48,8 @@ export function compactNumber(n: number): string {
 export function id(prefix: string, n: number): string {
   return `${prefix}-${n.toString().padStart(5, '0')}`;
 }
+
+/** Exclude nesting evaluations — they're shown in lists but don't count toward averages or pass rate. */
+export function excludeNesting<T extends { nestingAtTime?: boolean }>(items: T[]): T[] {
+  return items.filter((i) => !i.nestingAtTime);
+}

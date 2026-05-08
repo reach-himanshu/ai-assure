@@ -1,4 +1,5 @@
-import type { User } from '@/lib/types';
+import dayjs from 'dayjs';
+import type { EmploymentType, User, Vendor } from '@/lib/types';
 
 const COLORS = ['#2F6B1E', '#5A8F29', '#0F5132', '#3D7DB3', '#7B5EA7', '#B26B00', '#A4262C', '#1F7A8C'];
 function color(i: number) {
@@ -107,27 +108,42 @@ export const SUPERVISORS: User[] = [
   },
 ];
 
-const AGENT_SEED: { name: string; supervisorId: string }[] = [
-  { name: 'Maya Chen', supervisorId: 'sup-1' },
-  { name: 'Devon Rivera', supervisorId: 'sup-1' },
-  { name: 'Jacob Patel', supervisorId: 'sup-1' },
-  { name: 'Sasha Williams', supervisorId: 'sup-1' },
-  { name: 'Ethan Brooks', supervisorId: 'sup-1' },
-  { name: 'Naomi Singh', supervisorId: 'sup-2' },
-  { name: 'Kayla Foster', supervisorId: 'sup-2' },
-  { name: 'Aaron Thompson', supervisorId: 'sup-2' },
-  { name: 'Elena Volkov', supervisorId: 'sup-2' },
-  { name: 'Caleb Ramirez', supervisorId: 'sup-2' },
-  { name: 'Mira Joshi', supervisorId: 'sup-3' },
-  { name: 'Tyler Nguyen', supervisorId: 'sup-3' },
-  { name: 'Bianca Romero', supervisorId: 'sup-3' },
-  { name: 'Greg Mortenson', supervisorId: 'sup-3' },
-  { name: 'Lara Becker', supervisorId: 'sup-3' },
-  { name: 'Adam Holloway', supervisorId: 'sup-4' },
-  { name: 'Yara Khalil', supervisorId: 'sup-4' },
-  { name: 'Jin Park', supervisorId: 'sup-4' },
-  { name: 'Sophia Bennett', supervisorId: 'sup-4' },
-  { name: 'Wesley Cole', supervisorId: 'sup-4' },
+// Per-agent seed:
+//  - employmentType: associate (~70%) vs contractor (~30%)
+//  - vendor: contractor only
+//  - daysSinceTraining: how long ago training was completed (drives nesting status).
+//    > 90 = seasoned. 0–90 = currently in nesting (90-day rolling window). One agent
+//    is just past nesting (~95 days) and two are deep in nesting (~30 and ~60 days)
+//    so the demo shows seasoned + transitional + nesting reviewers side-by-side.
+interface AgentSeed {
+  name: string;
+  supervisorId: string;
+  employmentType: EmploymentType;
+  vendor?: Vendor;
+  daysSinceTraining: number;
+}
+
+const AGENT_SEED: AgentSeed[] = [
+  { name: 'Maya Chen', supervisorId: 'sup-1', employmentType: 'associate', daysSinceTraining: 720 },
+  { name: 'Devon Rivera', supervisorId: 'sup-1', employmentType: 'associate', daysSinceTraining: 540 },
+  { name: 'Jacob Patel', supervisorId: 'sup-1', employmentType: 'contractor', vendor: 'IBM', daysSinceTraining: 410 },
+  { name: 'Sasha Williams', supervisorId: 'sup-1', employmentType: 'associate', daysSinceTraining: 280 },
+  { name: 'Ethan Brooks', supervisorId: 'sup-1', employmentType: 'associate', daysSinceTraining: 200 },
+  { name: 'Naomi Singh', supervisorId: 'sup-2', employmentType: 'contractor', vendor: 'TCS', daysSinceTraining: 365 },
+  { name: 'Kayla Foster', supervisorId: 'sup-2', employmentType: 'associate', daysSinceTraining: 510 },
+  { name: 'Aaron Thompson', supervisorId: 'sup-2', employmentType: 'associate', daysSinceTraining: 220 },
+  { name: 'Elena Volkov', supervisorId: 'sup-2', employmentType: 'contractor', vendor: 'EY', daysSinceTraining: 305 },
+  { name: 'Caleb Ramirez', supervisorId: 'sup-2', employmentType: 'associate', daysSinceTraining: 95 }, // just past nesting
+  { name: 'Mira Joshi', supervisorId: 'sup-3', employmentType: 'associate', daysSinceTraining: 470 },
+  { name: 'Tyler Nguyen', supervisorId: 'sup-3', employmentType: 'contractor', vendor: 'Accenture', daysSinceTraining: 180 },
+  { name: 'Bianca Romero', supervisorId: 'sup-3', employmentType: 'associate', daysSinceTraining: 600 },
+  { name: 'Greg Mortenson', supervisorId: 'sup-3', employmentType: 'associate', daysSinceTraining: 350 },
+  { name: 'Lara Becker', supervisorId: 'sup-3', employmentType: 'contractor', vendor: 'Cognizant', daysSinceTraining: 250 },
+  { name: 'Adam Holloway', supervisorId: 'sup-4', employmentType: 'associate', daysSinceTraining: 800 },
+  { name: 'Yara Khalil', supervisorId: 'sup-4', employmentType: 'associate', daysSinceTraining: 430 },
+  { name: 'Jin Park', supervisorId: 'sup-4', employmentType: 'contractor', vendor: 'IBM', daysSinceTraining: 165 },
+  { name: 'Sophia Bennett', supervisorId: 'sup-4', employmentType: 'associate', daysSinceTraining: 60 },  // nesting
+  { name: 'Wesley Cole', supervisorId: 'sup-4', employmentType: 'contractor', vendor: 'TCS', daysSinceTraining: 30 }, // nesting
 ];
 
 export const AGENTS: User[] = AGENT_SEED.map((a, i) => {
@@ -139,9 +155,12 @@ export const AGENTS: User[] = AGENT_SEED.map((a, i) => {
     role: 'agent',
     team: sup.team,
     supervisorId: a.supervisorId,
-    title: 'HR4U Agent',
+    title: a.employmentType === 'contractor' ? `HR4U Agent (${a.vendor})` : 'HR4U Agent',
     avatarColor: color(i + 1),
     initials: initials(a.name),
+    employmentType: a.employmentType,
+    vendor: a.vendor,
+    trainingCompleteDate: dayjs().subtract(a.daysSinceTraining, 'day').toISOString(),
   };
 });
 

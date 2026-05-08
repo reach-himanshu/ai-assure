@@ -8,7 +8,7 @@ import { ScoreBadge } from '@/components/ScoreBadge';
 import { ChannelIcon, channelColor } from '@/components/ChannelIcon';
 import { CHANNEL_LABEL } from '@/lib/types';
 import { fromNow, formatDate } from '@/lib/dates';
-import { pct } from '@/lib/format';
+import { excludeNesting, pct } from '@/lib/format';
 import clsx from 'clsx';
 
 export function AgentDash() {
@@ -21,8 +21,11 @@ export function AgentDash() {
   );
 
   const last30 = mine.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(30, 'day')));
-  const avg = last30.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30.length, 1);
-  const passRate = (last30.filter((e) => e.band === 'pass').length / Math.max(last30.length, 1)) * 100;
+  // Nesting evals are visible in the list/trend but excluded from average + pass rate.
+  const last30Counted = excludeNesting(last30);
+  const avg = last30Counted.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30Counted.length, 1);
+  const passRate = (last30Counted.filter((e) => e.band === 'pass').length / Math.max(last30Counted.length, 1)) * 100;
+  const nestingCount = last30.length - last30Counted.length;
   const openAppeals = mine.filter((e) => e.appeal && e.appeal.status === 'open').length;
   const decidedAppeals = mine.filter((e) => e.appeal && e.appeal.status !== 'open').length;
 
@@ -58,7 +61,12 @@ export function AgentDash() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiTile label="30-day average" value={pct(avg || 0)} tone={avg >= 90 ? 'pass' : avg >= 75 ? 'review' : 'fail'} hint={`${last30.length} evals`} />
+        <KpiTile
+          label="30-day average"
+          value={pct(avg || 0)}
+          tone={avg >= 90 ? 'pass' : avg >= 75 ? 'review' : 'fail'}
+          hint={nestingCount > 0 ? `${last30Counted.length} counted · ${nestingCount} in nesting` : `${last30Counted.length} evals`}
+        />
         <KpiTile label="Pass rate" value={pct(passRate)} tone="pass" hint="≥ 90%" />
         <KpiTile label="Open appeals" value={openAppeals.toString()} hint="awaiting supervisor" />
         <KpiTile label="Decided appeals" value={decidedAppeals.toString()} hint="all-time" />

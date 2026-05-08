@@ -131,7 +131,14 @@ export function EvaluationList() {
                       {CHANNEL_LABEL[e.channel]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{e.agentName}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {e.agentName}
+                    {e.nestingAtTime && (
+                      <span className="pill bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 ml-2 text-[10px]">
+                        Nesting
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 max-w-md truncate">{e.summary}</td>
                   <td className="px-4 py-3"><ScoreBadge band={e.band} pct={e.overallPct} size="sm" /></td>
                   <td className="px-4 py-3"><ConfidencePill pct={e.aiConfidencePct} /></td>

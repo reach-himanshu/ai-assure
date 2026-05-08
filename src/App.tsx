@@ -15,7 +15,9 @@ import { AgentProfile } from '@/features/agents/AgentProfile';
 export default function App() {
   const init = useApp((s) => s.init);
   const theme = useApp((s) => s.theme);
+  const textSize = useApp((s) => s.textSize);
   const logoVariant = useApp((s) => s.logoVariant);
+  const toggleSidebar = useApp((s) => s.toggleSidebar);
   const currentUserId = useApp((s) => s.currentUserId);
 
   useEffect(() => {
@@ -26,6 +28,12 @@ export default function App() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  // Text size: drives root font-size; rem-based sizes scale automatically
+  useEffect(() => {
+    const px = textSize === 'small' ? '14px' : textSize === 'large' ? '18px' : '16px';
+    document.documentElement.style.fontSize = px;
+  }, [textSize]);
+
   // Update favicon to match the active logo variant
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
@@ -33,6 +41,19 @@ export default function App() {
     link.type = 'image/svg+xml';
     link.href = `/favicon-${logoVariant}.svg`;
   }, [logoVariant]);
+
+  // Cmd/Ctrl+B toggles the sidebar (only when authenticated)
+  useEffect(() => {
+    if (!currentUserId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [currentUserId, toggleSidebar]);
 
   return (
     <Routes>

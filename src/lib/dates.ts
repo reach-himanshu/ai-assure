@@ -39,3 +39,16 @@ export function durationLabel(seconds: number): string {
 export function nowIso(): string {
   return dayjs().toISOString();
 }
+
+/** Was the agent in their 90-day nesting window at the given moment? */
+export function isNestingAt(trainingCompleteDate: string | undefined, atIso: string): boolean {
+  if (!trainingCompleteDate) return false;
+  const at = dayjs(atIso);
+  const start = dayjs(trainingCompleteDate);
+  if (!at.isAfter(start)) return false;          // before training complete
+  return at.diff(start, 'day') <= 90;
+}
+
+export function isNestingNow(trainingCompleteDate: string | undefined): boolean {
+  return isNestingAt(trainingCompleteDate, nowIso());
+}

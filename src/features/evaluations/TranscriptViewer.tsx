@@ -10,10 +10,12 @@ export interface TranscriptViewerHandle {
 interface Props {
   evaluation: Evaluation;
   highlightedEvidenceId: string | null;
+  /** Optional: when the channel is 'call', clicking a turn fires this with the turn's ms timestamp. */
+  onTurnClick?: (ms: number) => void;
 }
 
 export const TranscriptViewer = forwardRef<TranscriptViewerHandle, Props>(function TranscriptViewer(
-  { evaluation, highlightedEvidenceId },
+  { evaluation, highlightedEvidenceId, onTurnClick },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,20 +72,24 @@ export const TranscriptViewer = forwardRef<TranscriptViewerHandle, Props>(functi
     <div ref={containerRef} className="card max-h-[600px] overflow-y-auto space-y-3">
       {turns.length === 0 && <p className="text-sm text-ink-muted">No transcript available.</p>}
       {turns.map((t) => (
-        <Turn key={t.id} turn={t} isCall={isCall} />
+        <Turn key={t.id} turn={t} isCall={isCall} onClick={() => {
+          if (isCall && typeof t.timestampMs === 'number' && onTurnClick) onTurnClick(t.timestampMs);
+        }} />
       ))}
     </div>
   );
 });
 
-function Turn({ turn, isCall }: { turn: TranscriptTurn; isCall: boolean }) {
+function Turn({ turn, isCall, onClick }: { turn: TranscriptTurn; isCall: boolean; onClick?: () => void }) {
   const isAgent = turn.speaker === 'agent';
   return (
     <div
       data-turn={turn.id}
+      onClick={onClick}
       className={clsx(
         'flex gap-3 transition-shadow rounded-xl',
         isAgent ? 'flex-row' : 'flex-row-reverse',
+        isCall && 'cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-900/10 -mx-1 px-1',
       )}
     >
       <div

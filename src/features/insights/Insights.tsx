@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { useApp, useCurrentUser } from '@/stores';
 import { KpiTile } from '@/components/KpiTile';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, Legend } from 'recharts';
-import { compactNumber, pct } from '@/lib/format';
+import { compactNumber, excludeNesting, pct } from '@/lib/format';
 
 export function Insights() {
   const me = useCurrentUser();
@@ -98,7 +98,7 @@ export function Insights() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiTile label="Evaluations (30d)" value={compactNumber(last30.length)} />
         <KpiTile label="CSAT responses (30d)" value={last30.filter((e) => e.csat).length.toString()} />
-        <KpiTile label="Avg score" value={pct(last30.reduce((s, e) => s + e.overallPct, 0) / Math.max(last30.length, 1))} />
+        <KpiTile label="Avg score" value={pct((() => { const c = excludeNesting(last30); return c.reduce((s, e) => s + e.overallPct, 0) / Math.max(c.length, 1); })())} />
         <KpiTile label="Themes tracked" value={themes.length.toString()} hint="from CSAT" />
       </div>
 
