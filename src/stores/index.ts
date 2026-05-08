@@ -24,7 +24,48 @@ import type { Channel } from '@/lib/types';
 // schema changes (e.g., evaluations gain a field) — without this, users with
 // pre-bump localStorage see stale data with missing fields rendered as blanks.
 // Bump alongside any breaking change to the persisted shape.
-const STORAGE_KEY = 'ai-assure-state-v2';
+//
+// v3: stopped persisting transcripts/emailBody/evidence/users — they're
+// deterministic seed data, not user mutations, and persisting them was
+// blowing past the 5 MB localStorage quota on some browsers.
+const STORAGE_KEY = 'ai-assure-state-v3';
+
+/**
+ * Quota-safe wrapper around localStorage. If a write fails (QuotaExceededError
+ * or any other reason) we drop the persisted state and continue in-memory —
+ * better to lose the demo's local mutations than to blank the page.
+ */
+const safeStorage = {
+  getItem: (name: string) => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch (err) {
+      // Most likely QuotaExceededError. Try clearing our key once and retrying;
+      // if it still fails, give up silently — the app keeps working in-memory.
+      try {
+        localStorage.removeItem(name);
+        localStorage.setItem(name, value);
+      } catch {
+        // eslint-disable-next-line no-console
+        console.warn('[ai-assure] persistence skipped — localStorage write failed', err);
+      }
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // ignore
+    }
+  },
+};
 
 interface AppState {
   bootstrapped: boolean;
@@ -108,6 +149,7 @@ function buildInitialState(): Pick<
     channelMonthlyVolumes: seed.channelMonthlyVolumes,
   };
 }
+// kept for resetDemo()
 
 export const useApp = create<AppState>()(
   persist(
@@ -127,9 +169,63 @@ export const useApp = create<AppState>()(
       channelMonthlyVolumes: [],
 
       init: () => {
-        if (get().bootstrapped) return;
-        const initial = buildInitialState();
-        set({ ...initial, bootstrapped: true });
+        const seed = generateSeed();
+        if (!get().bootstrapped) {
+          set({
+            users: seed.users,
+            evaluations: seed.evaluations,
+            audit: seed.audit,
+            config: DEFAULT_CONFIG,
+            channelVolumes: seed.channelVolumes,
+            channelMonthlyVolumes: seed.channelMonthlyVolumes,
+            bootstrapped: true,
+          });
+          return;
+        }
+        // Re-attach heavy seed-only fields (transcript, emailBody, evidence,
+        // genesys, callUrl, summary) onto persisted evaluations. These don't
+        // change once seeded, so we strip them in partialize() to keep
+        // localStorage under the 5 MB quota — and rehydrate from seed here.
+        const seedById = new Map(seed.evaluations.map((e) => [e.id, e]));
+        const persisted = get().evaluations;
+        const merged = persisted.map((e) => {
+          const fromSeed = seedById.get(e.id);
+          if (!fromSeed) return e; // QA-Admin-created manual evals: keep as-is
+          return {
+            ...e,
+            transcript: fromSeed.transcript,
+            emailBody: fromSeed.emailBody,
+            evidence: fromSeed.evidence,
+            genesys: fromSeed.genesys,
+            callUrl: fromSeed.callUrl,
+            summary: e.summary || fromSeed.summary,
+            // re-attach evidence id refs on each criterion
+            sections: e.sections.map((s, i) => ({
+              ...s,
+              criteria: s.criteria.map((c, j) => {
+                const seedC = fromSeed.sections[i]?.criteria[j];
+                return {
+                  ...c,
+                  // Always re-attach from seed; both fields are derivable.
+                  rationale: c.rationale || seedC?.rationale || '',
+                  evidenceQuoteIds: seedC?.evidenceQuoteIds ?? [],
+                };
+              }),
+            })),
+          };
+        });
+        // If currentUserId was persisted but somehow points to a user not in
+        // the seed (e.g., an old build's id), drop it so the app shows the
+        // login picker instead of crashing inside AppShell.
+        const currentUserId = get().currentUserId;
+        const validCurrent = currentUserId && seed.users.some((u) => u.id === currentUserId);
+        set({
+          users: seed.users, // users are immutable post-seed; always regenerate
+          evaluations: merged,
+          channelVolumes: seed.channelVolumes,
+          channelMonthlyVolumes: seed.channelMonthlyVolumes,
+          currentUserId: validCurrent ? currentUserId : null,
+        });
       },
 
       resetDemo: () => {
@@ -514,21 +610,52 @@ export const useApp = create<AppState>()(
     }),
     {
       name: STORAGE_KEY,
-      partialize: (s) => ({
-        bootstrapped: s.bootstrapped,
-        users: s.users,
-        evaluations: s.evaluations,
-        audit: s.audit,
-        config: s.config,
-        currentUserId: s.currentUserId,
-        theme: s.theme,
-        textSize: s.textSize,
-        sidebarHidden: s.sidebarHidden,
-        logoVariant: s.logoVariant,
-        appealIconVariant: s.appealIconVariant,
-        channelVolumes: s.channelVolumes,
-        channelMonthlyVolumes: s.channelMonthlyVolumes,
-      }),
+      storage: {
+        getItem: (name) => {
+          const v = safeStorage.getItem(name);
+          if (!v) return null;
+          try {
+            return JSON.parse(v);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => safeStorage.setItem(name, JSON.stringify(value)),
+        removeItem: (name) => safeStorage.removeItem(name),
+      },
+      partialize: (s) =>
+        ({
+          bootstrapped: s.bootstrapped,
+          // Strip heavy seed-only fields from each evaluation. Re-attached in
+          // init() from the deterministic seed. Persisting these blew past the
+          // localStorage quota.
+          evaluations: s.evaluations.map((e) => ({
+            ...e,
+            transcript: undefined,
+            emailBody: undefined,
+            evidence: [],
+            genesys: undefined,
+            // Per-criterion strings (rationale ~80 chars × 12 criteria/eval × 800 evals)
+            // are seed-derived and re-attached on init.
+            sections: e.sections.map((sec) => ({
+              ...sec,
+              criteria: sec.criteria.map((c) => ({
+                ...c,
+                rationale: '',
+                evidenceQuoteIds: [],
+              })),
+            })),
+          })),
+          audit: s.audit,
+          config: s.config,
+          currentUserId: s.currentUserId,
+          theme: s.theme,
+          textSize: s.textSize,
+          sidebarHidden: s.sidebarHidden,
+          logoVariant: s.logoVariant,
+          appealIconVariant: s.appealIconVariant,
+          // users + channelVolumes are seed-derived; don't persist
+        }) as unknown as AppState,
     },
   ),
 );
