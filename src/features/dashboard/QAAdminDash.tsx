@@ -5,6 +5,7 @@ import { useApp } from '@/stores';
 import { KpiTile } from '@/components/KpiTile';
 import { fromNow } from '@/lib/dates';
 import { compactNumber, pct } from '@/lib/format';
+import { ByChannelSection } from './ByChannelSection';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts';
 
 export function QAAdminDash() {
@@ -120,6 +121,12 @@ export function QAAdminDash() {
           </div>
         </div>
       </div>
+
+      <ByChannelSection
+        evaluations={evaluations}
+        title="Global activity by channel"
+        hint="Last 30 days · across all teams · click any channel to deep-dive"
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="card xl:col-span-2">

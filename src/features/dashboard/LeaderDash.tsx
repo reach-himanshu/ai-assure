@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '@/stores';
 import { KpiTile } from '@/components/KpiTile';
 import { compactNumber, excludeNesting, pct } from '@/lib/format';
+import { ByChannelSection } from './ByChannelSection';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, AreaChart, Area, BarChart, Bar, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
 import dayjs from 'dayjs';
 
@@ -126,6 +127,12 @@ export function LeaderDash() {
           </div>
         </div>
       </div>
+
+      <ByChannelSection
+        evaluations={evaluations}
+        title="Org-wide by channel"
+        hint="Last 30 days · click any channel to drill into Insights"
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="card xl:col-span-2">

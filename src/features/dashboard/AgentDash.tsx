@@ -9,6 +9,7 @@ import { ChannelIcon, channelColor } from '@/components/ChannelIcon';
 import { CHANNEL_LABEL } from '@/lib/types';
 import { fromNow, formatDate } from '@/lib/dates';
 import { excludeNesting, pct } from '@/lib/format';
+import { ByChannelSection } from './ByChannelSection';
 import clsx from 'clsx';
 
 export function AgentDash() {
@@ -110,6 +111,12 @@ export function AgentDash() {
           </div>
         </div>
       </div>
+
+      <ByChannelSection
+        evaluations={mine}
+        title="Your interactions by channel"
+        hint="Last 30 days · click any channel to see deep insights"
+      />
 
       <div className="card">
         <header className="flex items-baseline justify-between mb-4">

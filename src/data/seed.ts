@@ -358,6 +358,18 @@ function buildEvaluation(args: BuildArgs): Evaluation {
     imsCaseNumber,
     callUrl,
     summary,
+    // Response time for text channels — minutes from case-open to first agent reply.
+    // Skewed toward < 1h with a long tail. Calls and CSAT don't have this concept.
+    responseTimeMin:
+      channel === 'email' || channel === 'portal' || channel === 'chat'
+        ? (() => {
+            const r = rng.next();
+            if (r < 0.55) return rng.int(2, 30);    // 55% reply within 30 min
+            if (r < 0.85) return rng.int(30, 120);  // 30% within 30 min–2h
+            if (r < 0.97) return rng.int(120, 480); // 12% within 2–8h
+            return rng.int(480, 2160);              // 3% long-tail up to ~36h
+          })()
+        : undefined,
     nestingAtTime,
     employmentTypeAtTime: agent.employmentType,
     vendorAtTime: agent.vendor,

@@ -124,6 +124,9 @@ export interface Evaluation {
   imsCaseNumber?: string;
   callUrl?: string;
   summary: string;
+  // First-response time in minutes (email/portal/chat only) — minutes from
+  // case open to agent's first reply. Seed-derived; not user-editable.
+  responseTimeMin?: number;
   // Agent context snapshot at time of interaction (so historical evals don't move when
   // the agent crosses out of nesting later).
   nestingAtTime?: boolean;

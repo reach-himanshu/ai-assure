@@ -7,6 +7,7 @@ import { ScoreBadge } from '@/components/ScoreBadge';
 import { Avatar } from '@/components/Avatar';
 import { fromNow } from '@/lib/dates';
 import { excludeNesting, pct } from '@/lib/format';
+import { ByChannelSection } from './ByChannelSection';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, Cell } from 'recharts';
 
 export function SupervisorDash() {
@@ -117,6 +118,12 @@ export function SupervisorDash() {
           </div>
         </div>
       </div>
+
+      <ByChannelSection
+        evaluations={teamEvals}
+        title={`${me?.team ?? 'Team'} by channel`}
+        hint="Last 30 days · scoped to your team · click any channel to deep-dive"
+      />
 
       <div className="card">
         <header className="flex items-baseline justify-between mb-4">

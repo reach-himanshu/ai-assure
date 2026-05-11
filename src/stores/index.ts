@@ -199,6 +199,9 @@ export const useApp = create<AppState>()(
             genesys: fromSeed.genesys,
             callUrl: fromSeed.callUrl,
             summary: e.summary || fromSeed.summary,
+            // Re-attach seed-derived response time (text channels only) — keeps it
+            // out of localStorage but available to the dashboards/insights.
+            responseTimeMin: e.responseTimeMin ?? fromSeed.responseTimeMin,
             // re-attach evidence id refs on each criterion
             sections: e.sections.map((s, i) => ({
               ...s,
