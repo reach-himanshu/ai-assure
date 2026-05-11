@@ -93,6 +93,11 @@ export interface CSATData {
   verbatim: string;
   sentiment: 'pos' | 'neu' | 'neg';
   themes: string[];
+  /** The interaction channel this CSAT response is about. Every CSAT is tied
+   *  to an underlying call / email / chat / portal interaction — never CSAT
+   *  itself. Optional for back-compat with persisted state pre-redesign;
+   *  re-attached from seed in store init() when missing. */
+  parentChannel?: Exclude<Channel, 'csat'>;
 }
 
 export interface AppealRecord {

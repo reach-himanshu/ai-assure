@@ -16,7 +16,10 @@ interface Props {
   hint?: string;
 }
 
-const CHANNELS: Channel[] = ['call', 'email', 'portal', 'chat', 'csat'];
+// CSAT is intentionally excluded: it's not a peer channel — every CSAT
+// response is tied to one of the four interaction channels via parentChannel.
+// Customer-satisfaction analytics live in their own section on the Insights page.
+const CHANNELS: Channel[] = ['call', 'email', 'portal', 'chat'];
 
 export function ByChannelSection({ evaluations, title, hint }: Props) {
   const last30 = useMemo(() => lastNDays(evaluations, 30), [evaluations]);
@@ -33,7 +36,7 @@ export function ByChannelSection({ evaluations, title, hint }: Props) {
           All insights →
         </Link>
       </header>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {CHANNELS.map((ch) => {
           const evs = buckets[ch];
           const count = evs.length;

@@ -202,6 +202,9 @@ export const useApp = create<AppState>()(
             // Re-attach seed-derived response time (text channels only) — keeps it
             // out of localStorage but available to the dashboards/insights.
             responseTimeMin: e.responseTimeMin ?? fromSeed.responseTimeMin,
+            // CSAT data is seed-derived. Always re-attach so the parentChannel
+            // (added post-v3) shows up on previously-persisted CSAT evals.
+            csat: fromSeed.csat ?? e.csat,
             // re-attach evidence id refs on each criterion
             sections: e.sections.map((s, i) => ({
               ...s,

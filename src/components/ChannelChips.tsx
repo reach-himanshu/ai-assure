@@ -12,7 +12,10 @@ interface Props {
   className?: string;
 }
 
-const CHANNELS: ('all' | Channel)[] = ['all', 'call', 'email', 'portal', 'chat', 'csat'];
+// CSAT is intentionally excluded: it's a customer-feedback dimension *about*
+// an interaction on one of the four channels, not a peer channel. CSAT has
+// its own dedicated section on Insights, filtered by parentChannel.
+const CHANNELS: ('all' | Channel)[] = ['all', 'call', 'email', 'portal', 'chat'];
 
 export function ChannelChips({ value, onChange, counts, compact, className }: Props) {
   return (

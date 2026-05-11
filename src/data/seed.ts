@@ -237,12 +237,21 @@ function buildEvaluation(args: BuildArgs): Evaluation {
 
   if (channel === 'csat') {
     const sc = rng.pick(CSAT_SCENARIOS);
-    summary = `CSAT survey response (score ${sc.score}/5) — ${sc.themes.join(', ')}`;
+    // Every CSAT is "about" one of the four interaction channels — weighted to
+    // roughly mirror the volume mix (calls > emails > chats > portal).
+    const parentChannel = rng.weighted([
+      { item: 'call' as const, weight: 42 },
+      { item: 'email' as const, weight: 32 },
+      { item: 'chat' as const, weight: 16 },
+      { item: 'portal' as const, weight: 10 },
+    ]);
+    summary = `CSAT survey (${sc.score}/5) on a ${parentChannel} interaction — ${sc.themes.join(', ')}`;
     csat = {
       score: sc.score,
       verbatim: sc.verbatim,
       sentiment: sc.score >= 4 ? 'pos' : sc.score === 3 ? 'neu' : 'neg',
       themes: sc.themes,
+      parentChannel,
     };
     rubric = []; // CSAT doesn't use rubric
   } else if (channel === 'call') {
