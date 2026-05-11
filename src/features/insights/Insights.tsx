@@ -124,26 +124,12 @@ export function Insights() {
         <KpiTile label="Failing criteria tracked" value={failingCriteria.length.toString()} hint="last 30 days" />
       </div>
 
-      {/* Channel-native widgets — only when a specific channel is selected */}
+      {/* Channel-native widgets — only when a specific channel is selected.
+          The universal "Top failing criteria" panel below is already Call-scoped
+          via the channel filter, so we don't duplicate it here. */}
       {channel === 'call' && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
+        <div className="mb-5">
           <CallDurationHistogram evaluations={last30} />
-          <div className="card">
-            <header className="mb-3">
-              <h2 className="text-lg">Top failing criteria · Call</h2>
-              <p className="text-xs text-ink-muted">Last 30 days · scoped to calls</p>
-            </header>
-            <div className="h-64">
-              <ResponsiveContainer>
-                <BarChart data={failingCriteria} layout="vertical" margin={{ left: 0 }}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="label" stroke="#5B6760" fontSize={11} width={210} tickLine={false} axisLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="fails" radius={[0, 6, 6, 0]} fill="#A4262C" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
         </div>
       )}
 
