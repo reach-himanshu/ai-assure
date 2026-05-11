@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, Cell } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { useApp, useCurrentUser } from '@/stores';
 import { KpiTile } from '@/components/KpiTile';
 import { ScoreBadge } from '@/components/ScoreBadge';
@@ -42,18 +42,6 @@ export function AgentDash() {
     return days.filter((d) => d.count > 0);
   }, [mine]);
 
-  // Channel breakdown
-  const channelData = useMemo(() => {
-    const buckets: Record<string, { channel: string; avg: number; count: number; total: number }> = {};
-    for (const e of last30) {
-      const k = e.channel;
-      buckets[k] = buckets[k] ?? { channel: CHANNEL_LABEL[e.channel], avg: 0, count: 0, total: 0 };
-      buckets[k]!.count += 1;
-      buckets[k]!.total += e.overallPct;
-    }
-    return Object.values(buckets).map((b) => ({ ...b, avg: Math.round(b.total / b.count) }));
-  }, [last30]);
-
   return (
     <div>
       <div className="mb-5">
@@ -73,42 +61,23 @@ export function AgentDash() {
         <KpiTile label="Decided appeals" value={decidedAppeals.toString()} hint="all-time" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-        <div className="card lg:col-span-2">
-          <header className="flex items-baseline justify-between mb-3">
-            <h2 className="text-lg">14-day score trend</h2>
-            <span className="text-xs text-ink-muted">Daily average across all interactions</span>
-          </header>
-          <div className="h-56">
-            <ResponsiveContainer>
-              <LineChart data={trendData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-                <XAxis dataKey="date" stroke="#5B6760" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis domain={[0, 100]} stroke="#5B6760" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E3E7DF' }} />
-                <Line type="monotone" dataKey="score" stroke="#2F6B1E" strokeWidth={2.5} dot={{ r: 3, fill: '#2F6B1E' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="card">
-          <header className="mb-3">
-            <h2 className="text-lg">By channel</h2>
-            <p className="text-xs text-ink-muted">Average score · last 30 days</p>
-          </header>
-          <div className="h-56">
-            <ResponsiveContainer>
-              <BarChart data={channelData} margin={{ top: 10, right: 0, bottom: 0, left: 0 }}>
-                <XAxis dataKey="channel" stroke="#5B6760" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis domain={[0, 100]} stroke="#5B6760" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="avg" radius={[8, 8, 0, 0]}>
-                  {channelData.map((d) => (
-                    <Cell key={d.channel} fill={d.avg >= 90 ? '#2F6B1E' : d.avg >= 75 ? '#B26B00' : '#A4262C'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* 14-day score trend — full width since the legacy "By channel" bar chart
+          was removed (it was redundant with ByChannelSection below, which has
+          richer cards + sparklines + click-through to Insights). */}
+      <div className="card mb-6">
+        <header className="flex items-baseline justify-between mb-3">
+          <h2 className="text-lg">14-day score trend</h2>
+          <span className="text-xs text-ink-muted">Daily average across all interactions</span>
+        </header>
+        <div className="h-56">
+          <ResponsiveContainer>
+            <LineChart data={trendData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+              <XAxis dataKey="date" stroke="#5B6760" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis domain={[0, 100]} stroke="#5B6760" fontSize={12} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E3E7DF' }} />
+              <Line type="monotone" dataKey="score" stroke="#2F6B1E" strokeWidth={2.5} dot={{ r: 3, fill: '#2F6B1E' }} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

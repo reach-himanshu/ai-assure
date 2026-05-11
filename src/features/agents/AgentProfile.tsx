@@ -48,6 +48,10 @@ export function AgentProfile() {
   const channelBreakdown = useMemo(() => {
     const buckets: Record<string, { channel: string; avg: number; count: number; total: number }> = {};
     for (const e of last30) {
+      // CSAT is a cross-channel feedback dimension, not a peer interaction
+      // channel. Exclude it so the bar chart shows the four interaction
+      // channels only — same convention as everywhere else in the app.
+      if (e.channel === 'csat') continue;
       buckets[e.channel] = buckets[e.channel] ?? { channel: CHANNEL_LABEL[e.channel], avg: 0, count: 0, total: 0 };
       buckets[e.channel]!.count += 1;
       buckets[e.channel]!.total += e.overallPct;

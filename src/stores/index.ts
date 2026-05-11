@@ -28,7 +28,23 @@ import type { Channel } from '@/lib/types';
 // v3: stopped persisting transcripts/emailBody/evidence/users — they're
 // deterministic seed data, not user mutations, and persisting them was
 // blowing past the 5 MB localStorage quota on some browsers.
-const STORAGE_KEY = 'ai-assure-state-v3';
+// v4: CSAT redesign added parentChannel to seed via an extra rng.weighted()
+// call, which shifted the seed's per-eval RNG state. Browsers with v3
+// state from before that change could end up with persisted CSAT evals
+// whose IDs no longer match a CSAT slot in the new seed (RNG drift) — so
+// the init() re-attach couldn't restore parentChannel for them. Bumping
+// to v4 wipes legacy state so every reviewer sees consistent sums.
+const STORAGE_KEY = 'ai-assure-state-v4';
+
+// Fallback parentChannel assignment for any CSAT eval that ends up without
+// one after seed re-attach (defensive — shouldn't fire on v4 state but
+// protects against future seed-RNG drift the same way).
+const FALLBACK_PARENT_CHANNELS = ['call', 'email', 'chat', 'portal'] as const;
+function deterministicParentChannel(id: string): typeof FALLBACK_PARENT_CHANNELS[number] {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return FALLBACK_PARENT_CHANNELS[h % FALLBACK_PARENT_CHANNELS.length];
+}
 
 /**
  * Quota-safe wrapper around localStorage. If a write fails (QuotaExceededError
@@ -225,6 +241,17 @@ export const useApp = create<AppState>()(
             })),
           };
         });
+        // Defensive: ensure every CSAT eval has a parentChannel. If seed
+        // re-attach didn't restore it (e.g., RNG drift on legacy state),
+        // assign one deterministically by hashing the id. Guarantees that
+        // per-channel filter sums always reconcile against "all channels".
+        const integrityFixed = merged.map((e) => {
+          if (e.channel !== 'csat' || !e.csat || e.csat.parentChannel) return e;
+          return {
+            ...e,
+            csat: { ...e.csat, parentChannel: deterministicParentChannel(e.id) },
+          };
+        });
         // If currentUserId was persisted but somehow points to a user not in
         // the seed (e.g., an old build's id), drop it so the app shows the
         // login picker instead of crashing inside AppShell.
@@ -232,7 +259,7 @@ export const useApp = create<AppState>()(
         const validCurrent = currentUserId && seed.users.some((u) => u.id === currentUserId);
         set({
           users: seed.users, // users are immutable post-seed; always regenerate
-          evaluations: merged,
+          evaluations: integrityFixed,
           channelVolumes: seed.channelVolumes,
           channelMonthlyVolumes: seed.channelMonthlyVolumes,
           currentUserId: validCurrent ? currentUserId : null,
