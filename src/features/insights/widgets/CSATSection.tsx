@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
 import {
@@ -178,31 +179,51 @@ export function CSATSection({ evaluations, channel, rangeDays = 30, rangeLabel =
             </div>
           </div>
 
-          {/* Source-channel breakdown — only on 'all' */}
+          {/* Source-channel breakdown — only on 'all'. Each row pivots Insights
+              into that channel's view (CSAT section then auto-filters to that
+              parentChannel). This is the "start from CSAT, drill into the
+              channel that needs attention" workflow. */}
           {channel === 'all' && (
             <div className="card">
               <header className="mb-3">
                 <h3 className="text-base font-semibold">CSAT by source channel</h3>
-                <p className="text-xs text-ink-muted">Where did these CSAT responses come from?</p>
+                <p className="text-xs text-ink-muted">Click a channel to pivot the whole page into that channel's view</p>
               </header>
               <div className="space-y-2 mt-2">
                 {sourceBreakdown.map((s) => {
                   const maxCount = Math.max(1, ...sourceBreakdown.map((x) => x.count));
                   const widthPct = (s.count / maxCount) * 100;
                   return (
-                    <div key={s.channel} className="flex items-center gap-2">
+                    <Link
+                      key={s.channel}
+                      to={`/app/insights?channel=${s.channel}`}
+                      className="flex items-center gap-2 group rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      title={`Pivot to ${s.label}: filter all of Insights to ${s.label} interactions`}
+                    >
                       <span className={clsx('pill shrink-0', channelColor(s.channel as Channel))}>
                         <ChannelIcon channel={s.channel as Channel} size={11} />
                         {s.label}
                       </span>
-                      <div className="flex-1 h-6 bg-surface-alt dark:bg-surface-dark rounded-md overflow-hidden relative">
-                        <div className="absolute left-0 top-0 bottom-0 bg-rose-300/60 dark:bg-rose-700/40" style={{ width: `${widthPct}%` }} />
+                      <div className="flex-1 h-6 bg-surface-alt dark:bg-surface-dark rounded-md overflow-hidden relative transition-shadow group-hover:ring-2 group-hover:ring-brand-400/50">
+                        <div className="absolute left-0 top-0 bottom-0 bg-rose-300/60 dark:bg-rose-700/40 transition-all group-hover:bg-rose-400/70 dark:group-hover:bg-rose-600/50" style={{ width: `${widthPct}%` }} />
                         <div className="absolute inset-0 flex items-center justify-between px-2 text-xs font-medium">
                           <span className="text-ink-muted tabular-nums">{s.count.toLocaleString()}</span>
                           <span className="tabular-nums">{s.avg.toFixed(2)} / 5</span>
                         </div>
                       </div>
-                    </div>
+                      <svg
+                        className="w-3.5 h-3.5 text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </Link>
                   );
                 })}
               </div>

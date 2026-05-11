@@ -66,14 +66,15 @@ export function LeaderDash() {
     return Object.values(sectionScores).map((r) => ({ section: r.section, score: Math.round(r.total / Math.max(r.n, 1)) }));
   }, [last30]);
 
-  // Channel mix monthly
+  // Channel mix monthly — CSAT excluded (it's not an interaction channel; every
+  // CSAT response counts against one of the four channels already, so stacking
+  // it on top would double-count).
   const monthlyData = monthly.map((m) => ({
     name: m.month,
     Calls: m.calls,
     Emails: m.emails,
     Chats: m.chats,
     Portal: m.portal,
-    CSAT: m.csat,
   }));
 
   return (
@@ -151,7 +152,6 @@ export function LeaderDash() {
                 <Area type="monotone" dataKey="Emails" stackId="1" stroke="#3D7DB3" fill="#3D7DB3" fillOpacity={0.6} />
                 <Area type="monotone" dataKey="Chats" stackId="1" stroke="#7B5EA7" fill="#7B5EA7" fillOpacity={0.6} />
                 <Area type="monotone" dataKey="Portal" stackId="1" stroke="#B26B00" fill="#B26B00" fillOpacity={0.6} />
-                <Area type="monotone" dataKey="CSAT" stackId="1" stroke="#A4262C" fill="#A4262C" fillOpacity={0.6} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

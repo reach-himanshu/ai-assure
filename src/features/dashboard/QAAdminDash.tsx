@@ -48,13 +48,13 @@ export function QAAdminDash() {
     ];
   }, [last30]);
 
-  // Channel volume bar (claimed)
+  // Channel volume bar (claimed) — CSAT excluded; it's a survey response *about*
+  // these channels, not its own volume stream.
   const channelBar = [
     { name: 'Call', value: channelVolumes.call ?? 0 },
     { name: 'Email', value: channelVolumes.email ?? 0 },
     { name: 'Chat', value: channelVolumes.chat ?? 0 },
     { name: 'Portal', value: channelVolumes.portal ?? 0 },
-    { name: 'CSAT', value: channelVolumes.csat ?? 0 },
   ];
 
   return (
