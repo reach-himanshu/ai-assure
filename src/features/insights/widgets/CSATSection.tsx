@@ -122,7 +122,12 @@ export function CSATSection({ evaluations, channel, rangeDays = 30, rangeLabel =
         {/* KPI strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <CsatKpi label="Avg score" value={totalResponses === 0 ? '—' : `${avgScore.toFixed(2)} / 5`} tone={avgScore >= 4 ? 'good' : avgScore >= 3 ? 'mid' : 'bad'} />
-          <CsatKpi label="NPS-style" value={totalResponses === 0 ? '—' : String(npsLike)} hint="promoters − detractors" />
+          <CsatKpi
+            label="Net satisfaction"
+            value={totalResponses === 0 ? '—' : `${npsLike > 0 ? '+' : ''}${npsLike}%`}
+            hint="(% promoters − % detractors), NPS-style"
+            tone={npsLike >= 40 ? 'good' : npsLike >= 0 ? 'mid' : 'bad'}
+          />
           <CsatKpi label="Promoters (4–5★)" value={promoters.toLocaleString()} tone="good" />
           <CsatKpi label="Detractors (1–2★)" value={detractors.toLocaleString()} tone="bad" />
         </div>
