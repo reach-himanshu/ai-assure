@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
   Cell,
+  LabelList,
 } from 'recharts';
 import type { Channel, Evaluation } from '@/lib/types';
 import { CHANNEL_LABEL } from '@/lib/types';
@@ -144,6 +145,7 @@ export function CSATSection({ evaluations, channel, rangeDays = 30, rangeLabel =
                     {distribution.map((d, i) => (
                       <Cell key={i} fill={i >= 3 ? '#2F6B1E' : i === 2 ? '#B26B00' : '#A4262C'} />
                     ))}
+                    <LabelList dataKey="count" position="top" fontSize={11} fontWeight={600} fill="#0E1411" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

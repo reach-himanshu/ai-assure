@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import type { Evaluation } from '@/lib/types';
 import { responseTimeDistribution } from '@/lib/channelMetrics';
 
@@ -42,6 +42,7 @@ export function ResponseTimeHistogram({ evaluations, channelLabel = 'Text channe
               {data.map((d) => (
                 <Cell key={d.bucket} fill={colorFor(d.bucket)} />
               ))}
+              <LabelList dataKey="count" position="top" fontSize={11} fontWeight={600} fill="#0E1411" />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

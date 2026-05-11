@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import type { Evaluation } from '@/lib/types';
 import { durationDistribution } from '@/lib/channelMetrics';
 
@@ -32,6 +32,7 @@ export function CallDurationHistogram({ evaluations }: Props) {
               {data.map((_, i) => (
                 <Cell key={i} fill={i === peakIndex ? '#2F6B1E' : '#A8D085'} />
               ))}
+              <LabelList dataKey="count" position="top" fontSize={11} fontWeight={600} fill="#0E1411" />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
