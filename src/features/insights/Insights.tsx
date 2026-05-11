@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { useApp, useCurrentUser } from '@/stores';
 import { KpiTile } from '@/components/KpiTile';
 import { ChannelChips } from '@/components/ChannelChips';
+import { TimeRangeChips, type RangeDays } from '@/components/TimeRangeChips';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, Legend } from 'recharts';
 import { compactNumber, excludeNesting, pct } from '@/lib/format';
 import { bucketByChannel } from '@/lib/channelMetrics';
@@ -14,14 +15,18 @@ import { PerSectionPassRate } from './widgets/PerSectionPassRate';
 import { CSATSection } from './widgets/CSATSection';
 
 const CHANNEL_QUERY_KEY = 'channel';
+const RANGE_QUERY_KEY = 'range';
 // CSAT excluded: it's a cross-channel dimension (every CSAT is *about* an
 // interaction on one of these channels), not a peer. Its own section lives below.
 const VALID_CHANNELS: ('all' | Channel)[] = ['all', 'call', 'email', 'portal', 'chat'];
+const VALID_RANGES: RangeDays[] = [7, 14, 30, 60];
 
 export function Insights() {
   const me = useCurrentUser();
   const evaluations = useApp((s) => s.evaluations);
   const users = useApp((s) => s.users);
+  const storedRange = useApp((s) => s.insightsRangeDays);
+  const setStoredRange = useApp((s) => s.setInsightsRangeDays);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const visibleEvals = useMemo(() => {
@@ -47,12 +52,32 @@ export function Insights() {
     setSearchParams(params, { replace: true });
   };
 
+  // Time range — URL ?range= wins; otherwise the user's last choice from
+  // localStorage; otherwise default 30d.
+  const rangeParam = parseInt(searchParams.get(RANGE_QUERY_KEY) ?? '', 10);
+  const rangeDays: RangeDays = VALID_RANGES.includes(rangeParam as RangeDays)
+    ? (rangeParam as RangeDays)
+    : storedRange;
+  const setRangeDays = (next: RangeDays) => {
+    setStoredRange(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === 30) params.delete(RANGE_QUERY_KEY); // 30d is the default; clean URL
+    else params.set(RANGE_QUERY_KEY, String(next));
+    setSearchParams(params, { replace: true });
+  };
+
   const filtered = useMemo(
     () => (channel === 'all' ? visibleEvals : visibleEvals.filter((e) => e.channel === channel)),
     [visibleEvals, channel],
   );
 
-  const last30 = filtered.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(30, 'day')));
+  // Evaluations within the chosen time range. All downstream useMemos depend on
+  // this so the entire page re-renders when the range chip changes.
+  const last30 = useMemo(
+    () => filtered.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(rangeDays, 'day'))),
+    [filtered, rangeDays],
+  );
+  const rangeLabel = rangeDays === 7 ? 'last 7 days' : rangeDays === 14 ? 'last 14 days' : rangeDays === 30 ? 'last 30 days' : 'last 60 days';
   const counts = useMemo(() => {
     // Exclude CSAT from chip counts — it's not a peer channel.
     const b = bucketByChannel(visibleEvals);
@@ -107,9 +132,12 @@ export function Insights() {
 
   return (
     <div>
-      <div className="mb-5">
-        <h1 className="text-2xl">Insights</h1>
-        <p className="text-sm text-ink-muted mt-1">Calibration, sentiment, and failure modes across evaluations.</p>
+      <div className="mb-5 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl">Insights</h1>
+          <p className="text-sm text-ink-muted mt-1">Calibration, sentiment, and failure modes across evaluations.</p>
+        </div>
+        <TimeRangeChips value={rangeDays} onChange={setRangeDays} />
       </div>
 
       <div className="card-tight mb-5">
@@ -118,10 +146,10 @@ export function Insights() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiTile label={`Evaluations (30d · ${channelLabel})`} value={compactNumber(last30.length)} />
+        <KpiTile label={`Evaluations (${rangeLabel} · ${channelLabel})`} value={compactNumber(last30.length)} />
         <KpiTile label="Avg score" value={(() => { const c = excludeNesting(last30); return c.length === 0 ? '—' : pct(c.reduce((s, e) => s + e.overallPct, 0) / c.length); })()} />
         <KpiTile label="Pass rate" value={(() => { const c = excludeNesting(last30); return c.length === 0 ? '—' : pct((c.filter((e) => e.band === 'pass').length / c.length) * 100); })()} tone="pass" />
-        <KpiTile label="Failing criteria tracked" value={failingCriteria.length.toString()} hint="last 30 days" />
+        <KpiTile label="Failing criteria tracked" value={failingCriteria.length.toString()} hint={rangeLabel} />
       </div>
 
       {/* Channel-native widgets — only when a specific channel is selected.
@@ -162,7 +190,7 @@ export function Insights() {
         <div className="card">
           <header className="mb-3">
             <h2 className="text-lg">Top failing criteria</h2>
-            <p className="text-xs text-ink-muted">Last 30 days · {channelLabel}</p>
+            <p className="text-xs text-ink-muted capitalize-first">{rangeLabel} · {channelLabel}</p>
           </header>
           <div className="h-64">
             <ResponsiveContainer>
@@ -180,7 +208,7 @@ export function Insights() {
       {/* Customer satisfaction — dedicated section, always visible, filters by
           parentChannel against the active chip. CSAT is a cross-channel dimension,
           not a peer channel, so it lives here rather than as a chip option. */}
-      <CSATSection evaluations={visibleEvals} channel={channel} />
+      <CSATSection evaluations={visibleEvals} channel={channel} rangeDays={rangeDays} rangeLabel={rangeLabel} />
     </div>
   );
 }

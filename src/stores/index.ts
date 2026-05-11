@@ -79,6 +79,9 @@ interface AppState {
   sidebarHidden: boolean;
   logoVariant: LogoVariant;
   appealIconVariant: AppealIconVariant;
+  /** Last time-range the user picked on Insights (in days). Sticky across
+   *  sessions; overridden by ?range= URL param when present. */
+  insightsRangeDays: 7 | 14 | 30 | 60;
   channelVolumes: Record<string, number>;
   channelMonthlyVolumes: { month: string; calls: number; emails: number; chats: number; portal: number; csat: number }[];
 
@@ -91,6 +94,7 @@ interface AppState {
   toggleSidebar: () => void;
   setLogoVariant: (v: LogoVariant) => void;
   setAppealIconVariant: (v: AppealIconVariant) => void;
+  setInsightsRangeDays: (v: 7 | 14 | 30 | 60) => void;
   manualEvaluate: (evaluationId: string, opts: { startBlank: boolean; reason?: string }) => void;
   createManualEvaluation: (input: {
     channel: Channel;
@@ -165,6 +169,7 @@ export const useApp = create<AppState>()(
       sidebarHidden: false,
       logoVariant: 'spark',
       appealIconVariant: 'raised-hand',
+      insightsRangeDays: 30,
       channelVolumes: {},
       channelMonthlyVolumes: [],
 
@@ -264,6 +269,7 @@ export const useApp = create<AppState>()(
 
       setLogoVariant: (v) => set({ logoVariant: v }),
       setAppealIconVariant: (v) => set({ appealIconVariant: v }),
+      setInsightsRangeDays: (v) => set({ insightsRangeDays: v }),
 
       createManualEvaluation: (input) => {
         const state = get();
@@ -660,6 +666,7 @@ export const useApp = create<AppState>()(
           sidebarHidden: s.sidebarHidden,
           logoVariant: s.logoVariant,
           appealIconVariant: s.appealIconVariant,
+          insightsRangeDays: s.insightsRangeDays,
           // users + channelVolumes are seed-derived; don't persist
         }) as unknown as AppState,
     },

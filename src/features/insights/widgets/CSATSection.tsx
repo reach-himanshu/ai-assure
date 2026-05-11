@@ -23,9 +23,13 @@ interface Props {
   /** Active channel chip — when set to a specific channel, filter to that
    *  parentChannel; when 'all', show org-wide + the source-channel breakdown. */
   channel: 'all' | Channel;
+  /** Time-range window, in days. Defaults to 30 for back-compat. */
+  rangeDays?: number;
+  /** Human-readable range label for the header (e.g., "last 30 days"). */
+  rangeLabel?: string;
 }
 
-export function CSATSection({ evaluations, channel }: Props) {
+export function CSATSection({ evaluations, channel, rangeDays = 30, rangeLabel = 'last 30 days' }: Props) {
   // Always work from CSAT evals only, then optionally filter by parentChannel.
   const allCsat = useMemo(() => evaluations.filter((e) => e.channel === 'csat' && e.csat), [evaluations]);
   const filtered = useMemo(() => {
@@ -33,7 +37,10 @@ export function CSATSection({ evaluations, channel }: Props) {
     return allCsat.filter((e) => e.csat?.parentChannel === channel);
   }, [allCsat, channel]);
 
-  const last30 = filtered.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(30, 'day')));
+  const last30 = useMemo(
+    () => filtered.filter((e) => dayjs(e.caseDateTime).isAfter(dayjs().subtract(rangeDays, 'day'))),
+    [filtered, rangeDays],
+  );
 
   const totalResponses = last30.length;
   const avgScore = totalResponses === 0 ? 0 : last30.reduce((s, e) => s + (e.csat?.score ?? 0), 0) / totalResponses;
@@ -51,10 +58,10 @@ export function CSATSection({ evaluations, channel }: Props) {
     return buckets;
   }, [last30]);
 
-  // Sentiment trend (last 30 days)
+  // Sentiment trend over the chosen window
   const sentimentTrend = useMemo(() => {
     const days: { date: string; pos: number; neu: number; neg: number }[] = [];
-    for (let i = 29; i >= 0; i--) {
+    for (let i = rangeDays - 1; i >= 0; i--) {
       const day = dayjs().subtract(i, 'day');
       const dayCsat = filtered.filter((e) => dayjs(e.caseDateTime).isSame(day, 'day'));
       days.push({
@@ -65,7 +72,7 @@ export function CSATSection({ evaluations, channel }: Props) {
       });
     }
     return days;
-  }, [filtered]);
+  }, [filtered, rangeDays]);
 
   // Themes (top 8)
   const themes = useMemo(() => {
@@ -103,7 +110,7 @@ export function CSATSection({ evaluations, channel }: Props) {
             Customer satisfaction
           </h2>
           <p className="text-xs text-ink-muted mt-0.5">
-            {totalResponses.toLocaleString()} CSAT responses · about {scopeLabel} · last 30 days
+            {totalResponses.toLocaleString()} CSAT responses · about {scopeLabel} · {rangeLabel}
           </p>
         </div>
         {channel !== 'all' && totalResponses === 0 && (
